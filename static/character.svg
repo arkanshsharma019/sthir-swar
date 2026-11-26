@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="Sthir Swar: a smiling grandmother speaking">
+  <!-- background -->
+  <circle cx="100" cy="100" r="98" fill="#FFE9D6"/>
+  <!-- voice waves -->
+  <g fill="none" stroke="#F08A4B" stroke-width="7" stroke-linecap="round">
+    <path d="M150 78 q12 22 0 44"/>
+    <path d="M166 66 q20 34 0 68" opacity=".6"/>
+  </g>
+  <clipPath id="round"><circle cx="100" cy="100" r="98"/></clipPath>
+  <g clip-path="url(#round)">
+    <!-- sari / shoulders -->
+    <path d="M30 210 q4-58 70-62 q66 4 70 62z" fill="#2A7F7A"/>
+    <path d="M58 160 q42 34 84 0 l6 10 q-48 40 -96 0z" fill="#F2B64B"/>
+    <!-- neck -->
+    <path d="M86 128 h28 v22 q-14 8 -28 0z" fill="#C98A62"/>
+    <!-- hair back + bun -->
+    <circle cx="100" cy="42" r="17" fill="#B9B4AE"/>
+    <ellipse cx="100" cy="86" rx="45" ry="48" fill="#B9B4AE"/>
+    <!-- face -->
+    <ellipse cx="100" cy="94" rx="36" ry="41" fill="#D99B72"/>
+    <!-- ears -->
+    <ellipse cx="63" cy="96" rx="6" ry="9" fill="#C98A62"/>
+    <ellipse cx="137" cy="96" rx="6" ry="9" fill="#C98A62"/>
+    <circle cx="63" cy="106" r="3" fill="#F2B64B"/>
+    <circle cx="137" cy="106" r="3" fill="#F2B64B"/>
+    <!-- hair front, parted -->
+    <path d="M64 82 q4-34 36-34 q32 0 36 34 q-14-20 -36-22 q-22 2 -36 22z" fill="#D8D4CF"/>
+    <path d="M100 49 v13" stroke="#9E9892" stroke-width="2"/>
+    <!-- bindi -->
+    <circle cx="100" cy="74" r="3.6" fill="#C0392B"/>
+    <!-- glasses -->
+    <g fill="#FFFFFF" fill-opacity=".35" stroke="#5A4636" stroke-width="3">
+      <circle cx="85" cy="92" r="11"/>
+      <circle cx="115" cy="92" r="11"/>
+    </g>
+    <path d="M96 92 h8" stroke="#5A4636" stroke-width="3"/>
+    <!-- eyes (smiling) -->
+    <g fill="none" stroke="#3B2A1E" stroke-width="3" stroke-linecap="round">
+      <path d="M80 94 q5-5 10 0"/>
+      <path d="M110 94 q5-5 10 0"/>
+    </g>
+    <!-- cheeks -->
+    <circle cx="76" cy="108" r="6" fill="#E8836B" opacity=".45"/>
+    <circle cx="124" cy="108" r="6" fill="#E8836B" opacity=".45"/>
+    <!-- nose and smile (open, speaking) -->
+    <path d="M100 98 q-3 8 1 10" fill="none" stroke="#B5785A" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M88 116 q12 12 24 0 q-12 4 -24 0z" fill="#8E3B2E"/>
+    <!-- smile lines -->
+    <g fill="none" stroke="#B5785A" stroke-width="2" stroke-linecap="round" opacity=".7">
+      <path d="M82 114 q-2 5 1 9"/>
+      <path d="M118 114 q2 5 -1 9"/>
+    </g>
+  </g>
+</svg>

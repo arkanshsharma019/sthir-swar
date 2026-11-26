@@ -1,0 +1,16 @@
+services:
+  sthir-swar:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      # Optional AI keys, read from a .env file next to this one. Leave empty and the app
+      # still starts; symptoms are then understood by keywords and buttons.
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+    volumes:
+      - sthir-data:/data
+    restart: unless-stopped
+
+volumes:
+  sthir-data:
