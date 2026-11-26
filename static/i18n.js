@@ -384,7 +384,7 @@ const SYMPTOMS = {
 
 const TRENDS = {
   better: ["better", "less", "improv", "kam ", "कम", "बेहतर", "आराम", "குறைவு", "குறைஞ்ச", "பரவாயில்ல", "நல்லா", "ভালো", "কম"],
-  worse: ["worse", "more", "very", "bad", "a lot", "zyada", "jyada", "ज़्यादा", "ज्यादा", "बढ़", "बहुत", "அதிகம", "ஜாஸ்தி", "மோசம", "ரொம்ப", "বেশি", "খারাপ", "বেড়ে"],
+  worse: ["worse", "more", "very", "bad", "a lot", "zyada", "jyada", "bahut", "bohot", "jaasthi", "romba", "ज़्यादा", "ज्यादा", "बढ़", "बहुत", "அதிகம", "ஜாஸ்தி", "மோசம", "ரொம்ப", "বেশি", "খারাপ", "বেড়ে"],
 };
 
 // Telugu, Marathi and Punjabi (Gurmukhi) keywords, added to the tables above.
