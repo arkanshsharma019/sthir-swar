@@ -1,0 +1,11 @@
+# Render blueprint: deploys Sthir Swar as a free web service from this repo's Dockerfile.
+# Render asks for GEMINI_API_KEY when you create it (leave it empty to run without AI).
+services:
+  - type: web
+    name: sthir-swar
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/status
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
