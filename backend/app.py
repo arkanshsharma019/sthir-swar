@@ -544,8 +544,7 @@ SAFETY_RULES = (
 ASK_SYSTEM = (
     "You are Sthir Swar, a calm voice companion for a person living with Parkinson's disease. "
     "Your reply is read aloud, so answer in 1-3 short, plain sentences with no lists or markdown. "
-    "Reply in the language given in [language: ..] (en English, hi Hindi, ta Tamil, bn Bengali, "
-    "te Telugu, mr Marathi, pa Punjabi in Gurmukhi script); "
+    "Reply in the language given in [language: ..] (en English, hi Hindi, bn Bengali, mr Marathi, te Telugu, ta Tamil, gu Gujarati, ur Urdu in Urdu script, kn Kannada, ml Malayalam, pa Punjabi in Gurmukhi script); "
     "the person may mix languages. " + SAFETY_RULES
 )
 
@@ -569,7 +568,8 @@ EVERYDAY_EXAMPLES = (
 
 UNDERSTAND_SYSTEM = (
     "You help a person with Parkinson's disease record how they feel. They speak freely, possibly mixing "
-    "English, Hindi, Tamil, Bengali, Telugu, Marathi and Punjabi, and speech recognition may have small errors. "
+    "English and Indian languages (Hindi, Bengali, Marathi, Telugu, Tamil, Gujarati, Urdu, Kannada, Malayalam, "
+    "Punjabi), and speech recognition may have small errors. "
     "List every symptom or feeling they describe as a separate item. Use these kinds: "
     "tremor (shaking, trembling), stiffness (rigid, tight muscles), slowness (slow movement, hard to start), "
     "freezing (feet stuck, cannot start walking), fall (fell or nearly fell), dizziness (light-headed, giddy, faint), "
@@ -582,7 +582,7 @@ UNDERSTAND_SYSTEM = (
     "urgent: true only for a fall with injury or head hit, choking, chest pain, trouble breathing, fainting, "
     "or confusion. "
     "reply: one or two short, warm sentences, to be read aloud in the language given in [language: ..] "
-    "(en English, hi Hindi, ta Tamil, bn Bengali, te Telugu, mr Marathi, pa Punjabi in Gurmukhi script), "
+    "(en English, hi Hindi, bn Bengali, mr Marathi, te Telugu, ta Tamil, gu Gujarati, ur Urdu in Urdu script, kn Kannada, ml Malayalam, pa Punjabi in Gurmukhi script), "
     "saying what you noted. If urgent, also tell them to press Help. " + SAFETY_RULES
 )
 
@@ -715,7 +715,8 @@ def save_ai_symptoms(data: dict, said: str, current: datetime, reported_by: str 
 
 SPEAK_SYSTEM = (
     "You are the ears of Sthir Swar, a voice app for a person with Parkinson's disease. They speak freely, "
-    "possibly mixing English, Hindi, Tamil, Bengali, Telugu, Marathi and Punjabi; speech recognition may have errors. "
+    "possibly mixing English with Hindi, Bengali, Marathi, Telugu, Tamil, Gujarati, Urdu, Kannada, Malayalam or "
+    "Punjabi; speech recognition may have errors. "
     "Decide the ONE main action:\n"
     "- symptoms: they describe how they feel (list every symptom, same rules as below)\n"
     "- dose_taken / dose_missed: they say they took, or missed/forgot, a medicine\n"
@@ -732,7 +733,7 @@ SPEAK_SYSTEM = (
     "trend: worse, better or same. detail: short English note with timing/context. "
     "urgent: true only for a fall with injury or head hit, choking, chest pain, trouble breathing, fainting or confusion. "
     "reply: one or two short, warm sentences to read aloud, in the language given in [language: ..] "
-    "(en English, hi Hindi, ta Tamil, bn Bengali, te Telugu, mr Marathi, pa Punjabi in Gurmukhi script). "
+    "(en English, hi Hindi, bn Bengali, mr Marathi, te Telugu, ta Tamil, gu Gujarati, ur Urdu in Urdu script, kn Kannada, ml Malayalam, pa Punjabi in Gurmukhi script). "
     "For symptoms, say what you noted; if urgent, tell them to press Help. For a question, answer it. " + SAFETY_RULES
 )
 
@@ -800,7 +801,9 @@ def ask(q: Ask):
 # replies aloud in natural Indian voices. Without it, the browser's own speech is used.
 
 SARVAM_URL = "https://api.sarvam.ai"
-SPEECH_LANGS = {"en": "en-IN", "hi": "hi-IN", "ta": "ta-IN", "bn": "bn-IN", "te": "te-IN", "mr": "mr-IN", "pa": "pa-IN"}
+# Languages Sarvam can speak. Urdu has no Sarvam voice yet, so the browser speaks Urdu.
+SPEECH_LANGS = {"en": "en-IN", "hi": "hi-IN", "bn": "bn-IN", "mr": "mr-IN", "te": "te-IN", "ta": "ta-IN",
+                "gu": "gu-IN", "kn": "kn-IN", "ml": "ml-IN", "pa": "pa-IN"}
 _tts_cache: "OrderedDict[tuple, str]" = OrderedDict()  # repeated phrases are not paid for twice
 
 
@@ -842,6 +845,8 @@ async def text_to_speech(sp: Speech):
     """Text -> natural Indian voice (MP3, base64) with Sarvam."""
     if not sarvam_key():
         return {"configured": False, "ok": False}
+    if sp.language not in SPEECH_LANGS:
+        return {"configured": True, "ok": False, "error": "no Sarvam voice for this language"}
     key = (sp.text, sp.language)
     if key in _tts_cache:
         _tts_cache.move_to_end(key)
@@ -875,6 +880,10 @@ DEMO_WORDS = {
     "te": ("నా వణుకు ఎక్కువైంది", "ఒళ్ళు బిగుసుకుపోయింది", "నేను బాత్రూంలో పడిపోయాను", "ఈ వారం సాయంత్రం నెమ్మదిగా నడుస్తున్నారు."),
     "mr": ("माझी थरथर वाढली आहे", "अंग ताठ झाले आहे", "मी बाथरूममध्ये पडले", "या आठवड्यात संध्याकाळी हळू चालतात."),
     "pa": ("ਮੇਰੀ ਕੰਬਣੀ ਵੱਧ ਗਈ ਹੈ", "ਸਰੀਰ ਆਕੜਿਆ ਹੋਇਆ ਹੈ", "ਮੈਂ ਬਾਥਰੂਮ ਵਿੱਚ ਡਿੱਗ ਗਈ", "ਇਸ ਹਫ਼ਤੇ ਸ਼ਾਮ ਨੂੰ ਹੌਲੀ ਤੁਰਦੇ ਹਨ।"),
+    "gu": ("મારી ધ્રુજારી વધી ગઈ છે", "શરીર અકડાઈ ગયું છે", "હું બાથરૂમમાં પડી ગઈ", "આ અઠવાડિયે સાંજે ધીમે ચાલે છે."),
+    "ur": ("میری کپکپی بڑھ گئی ہے", "جسم اکڑ گیا ہے", "میں باتھ روم میں گر گئی", "اس ہفتے شام کو آہستہ چلتی ہیں۔"),
+    "kn": ("ನನ್ನ ನಡುಕ ಹೆಚ್ಚಾಗಿದೆ", "ಮೈ ಬಿಗಿಯಾಗಿದೆ", "ನಾನು ಬಾತ್‌ರೂಮ್‌ನಲ್ಲಿ ಬಿದ್ದೆ", "ಈ ವಾರ ಸಂಜೆ ನಿಧಾನವಾಗಿ ನಡೆಯುತ್ತಾರೆ."),
+    "ml": ("എന്റെ വിറയൽ കൂടി", "ശരീരം മുറുകിയിരിക്കുന്നു", "ഞാൻ കുളിമുറിയിൽ വീണു", "ഈ ആഴ്ച വൈകുന്നേരം പതുക്കെയാണ് നടക്കുന്നത്."),
 }
 
 

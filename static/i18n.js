@@ -2,14 +2,20 @@
 // Translations should be checked by native speakers before real use.
 
 import { PAGE_STRINGS } from "./i18n-pages.js";
+import { EXTRA_STRINGS } from "./i18n-extra.js";
 
+// Shown in this order in the language menu. dir: "rtl" for scripts written right to left.
 export const LANGS = {
   en: { label: "English", speech: "en-IN" },
   hi: { label: "हिन्दी", speech: "hi-IN" },
-  ta: { label: "தமிழ்", speech: "ta-IN" },
   bn: { label: "বাংলা", speech: "bn-IN" },
-  te: { label: "తెలుగు", speech: "te-IN" },
   mr: { label: "मराठी", speech: "mr-IN" },
+  te: { label: "తెలుగు", speech: "te-IN" },
+  ta: { label: "தமிழ்", speech: "ta-IN" },
+  gu: { label: "ગુજરાતી", speech: "gu-IN" },
+  ur: { label: "اردو", speech: "ur-IN", dir: "rtl" },
+  kn: { label: "ಕನ್ನಡ", speech: "kn-IN" },
+  ml: { label: "മലയാളം", speech: "ml-IN" },
   pa: { label: "ਪੰਜਾਬੀ", speech: "pa-IN" },
 };
 
@@ -382,6 +388,8 @@ const STRINGS = {
 
 // Caregiver page and doctor summary text live in i18n-pages.js.
 for (const [lang, strings] of Object.entries(PAGE_STRINGS)) Object.assign(STRINGS[lang], strings);
+// Gujarati, Urdu, Kannada and Malayalam carry every text in one file.
+Object.assign(STRINGS, EXTRA_STRINGS);
 
 export const STRINGS_EN = STRINGS.en;
 let current = "en";
@@ -482,14 +490,51 @@ MORE.SYMPTOMS.tremor.push("won't stop moving", "hands won't stop", "haath hil", 
 MORE.SYMPTOMS.dizziness.push("spinning", "ghoom raha", "आँखों के आगे अँधेरा", "सिर घूम");
 MORE.SYMPTOMS.swallowing.push("stuck in my throat", "gale mein atak", "गले में अटक");
 MORE.SYMPTOMS.mood.push("feeling low", "man nahi lag", "मन नहीं लग", "ghabrahat");
+// Gujarati, Urdu, Kannada and Malayalam keywords.
+const MORE2 = {
+  INTENTS: {
+    help: ["મદદ", "બચાવો", "مدد", "بچاؤ", "ಸಹಾಯ", "ಕಾಪಾಡಿ", "സഹായം", "രക്ഷിക്ക"],
+    message: ["સંદેશ", "મેસેજ", "پیغام", "میسج", "ಸಂದೇಶ", "ಮೆಸೇಜ್", "സന്ദേശം", "മെസേജ്"],
+    call: ["ફોન", "فون", "کال کر", "ಫೋನ್", "ಕರೆ ಮಾಡ", "ഫോൺ", "വിളിക്ക"],
+    medicine: ["દવા", "ગોળી", "دوا", "گولی", "ಔಷಧ", "ಮಾತ್ರೆ", "മരുന്ന്", "ഗുളിക"],
+    summary: ["ડૉક્ટર", "ڈاکٹر", "ಡಾಕ್ಟರ್", "ವೈದ್ಯ", "ഡോക്ടർ"],
+    greet: ["નમસ્તે", "કેમ છો", "السلام", "سلام", "آداب", "ನಮಸ್ಕಾರ", "നമസ്കാരം"],
+  },
+  ANSWERS: {
+    missed: ["ભૂલી", "ચૂકી", "بھول", "چھوٹ", "ಮರೆತ", "ತಪ್ಪಿ", "മറന്നു", "വിട്ടുപോയി"],
+    not_yet: ["હજી નહીં", "પછી", "ابھی نہیں", "بعد میں", "ಇನ್ನೂ ಇಲ್ಲ", "ಆಮೇಲೆ", "ഇതുവരെ ഇല്ല", "പിന്നെ"],
+    no: ["ના", "નહીં", "نہیں", "ಇಲ್ಲ", "ಬೇಡ", "ഇല്ല", "വേണ്ട"],
+    yes: ["હા", "લીધી", "ہاں", "جی", "لے لی", "ಹೌದು", "ತೆಗೆದುಕೊಂಡೆ", "ಸರಿ", "അതെ", "എടുത്തു", "ശരി", "കഴിച്ചു"],
+  },
+  SYMPTOMS: {
+    fall: ["પડી ગ", "પડ્યો", "گر گ", "گری", "ಬಿದ್ದ", "വീണു"],
+    dizziness: ["ચક્કર", "چکر", "ತಲೆ ಸುತ್ತ", "തലകറക്ക"],
+    swallowing: ["ગળવા", "نگل", "ನುಂಗ", "വിഴുങ്ങ"],
+    freezing: ["પગ ચોંટ", "અટકી", "اٹک", "پاؤں جم", "ಕಾಲು ಕದಲ", "കാൽ അനങ്ങ", "കുടുങ്ങ"],
+    tremor: ["ધ્રુજ", "ધ્રૂજ", "કંપ", "کانپ", "کپکپی", "لرز", "ನಡುಕ", "ನಡುಗ", "വിറയ", "വിറക്ക"],
+    stiffness: ["અકડ", "જકડ", "اکڑ", "جکڑ", "ಬಿಗಿ", "ಗಟ್ಟಿ", "മുറുക്ക"],
+    slowness: ["ધીમ", "آہستہ", "سست", "ನಿಧಾನ", "പതുക്കെ"],
+    sleep: ["ઊંઘ", "નીંદ", "نیند", "ನಿದ್ದೆ", "ನಿದ್ರೆ", "ഉറക്ക"],
+    mood: ["ઉદાસ", "ચિંતા", "ગભરામણ", "اداس", "گھبراہٹ", "پریشان", "ದುಃಖ", "ಆತಂಕ", "ಚಿಂತೆ", "സങ്കട", "ആശങ്ക"],
+    pain: ["દુખ", "દર્દ", "માથું", "درد", "ನೋವು", "വേദന"],
+  },
+  TRENDS: {
+    better: ["ઓછ", "સારું", "بہتر", "ಕಡಿಮೆ", "ಉತ್ತಮ", "കുറവ്", "ഭേദം"],
+    worse: ["વધારે", "વધુ", "બહુ", "زیادہ", "بہت", "بڑھ", "ಜಾಸ್ತಿ", "ಹೆಚ್ಚು", "കൂടുതൽ", "വല്ലാതെ"],
+  },
+};
+for (const [table, entries] of Object.entries(MORE2)) {
+  for (const [key, words] of Object.entries(entries)) MORE[table][key] = [...(MORE[table][key] || []), ...words];
+}
 const TABLES = { INTENTS, ANSWERS, SYMPTOMS, TRENDS };
 for (const [table, entries] of Object.entries(MORE)) {
   for (const [key, words] of Object.entries(entries)) TABLES[table][key].push(...words);
 }
 
-const norm = (s) => ` ${s.toLowerCase().replace(/[.,!?।]/g, " ")} `;
+const norm = (s) => ` ${s.toLowerCase().replace(/[.,!?।۔،؟]/g, " ")} `;
 // Short English words ("no", "ok", "hi") must stand alone; Indian-language stems can take endings (औषध → औषधाची).
-const isShortLatin = (w) => w.trim().length <= 3 && /^[a-z ]+$/.test(w);
+// Very short words in any script ("હા" yes inside "હાથ" hand) must also stand alone.
+const isShortLatin = (w) => (w.trim().length <= 3 && /^[a-z ]+$/.test(w)) || [...w.trim()].length <= 2;
 const hit = (text, words) => words.some((w) => text.includes(isShortLatin(w) ? ` ${w.trim()} ` : w));
 
 function firstMatch(text, table) {
@@ -504,6 +549,7 @@ const TOOK = [
   "ले ली", "ले लिया", "खा ली", "खा लिया", "ले चुका", "ले चुकी",
   "எடுத்துக்கிட்டேன்", "எடுத்தேன்", "சாப்பிட்டேன்", "খেয়েছি", "খেয়ে নিয়েছি",
   "వేసుకున్నా", "వేసుకున్నాను", "घेतल", "ਲੈ ਲਈ", "ਲੈ ਲਿਆ", "ਖਾ ਲਈ",
+  "લઈ લીધી", "લીધી", "لے لی", "کھا لی", "ತೆಗೆದುಕೊಂಡೆ", "കഴിച്ചു", "എടുത്തു",
 ];
 export const detectTook = (text) => hit(norm(text), TOOK);
 

@@ -32,9 +32,10 @@ a { color: inherit; }
 .brand img { width: 58px; height: 58px; }
 .brand strong { display: block; font-size: 1.25rem; color: var(--brand); letter-spacing: .3px; }
 .brand small { display: block; font-size: .8rem; color: var(--muted); }
-.langs { display: flex; gap: 8px; flex-wrap: wrap; }
-.langs button { min-height: 56px; min-width: 76px; border-radius: 999px; border: 2px solid var(--line); background: var(--surface); color: var(--ink); font-size: 1rem; cursor: pointer; }
-.langs button[aria-pressed="true"] { background: var(--brand); border-color: var(--brand); color: #fff; font-weight: 700; }
+.langs { display: flex; }
+.lang-pick { display: flex; align-items: center; gap: 8px; border: 2px solid var(--brand); border-radius: 999px; padding: 0 6px 0 14px; background: var(--brand-soft); }
+.lang-pick span { font-size: 1.4rem; }
+.lang-pick select { min-height: 56px; min-width: 150px; border: 0; background: transparent; font-size: 1.15rem; font-weight: 700; color: var(--brand); padding: 6px 8px; }
 
 /* ---------- type hierarchy ---------- */
 main { max-width: 900px; margin: 0 auto; padding: 22px 16px 130px; }
@@ -58,7 +59,7 @@ p { margin: 0 0 12px; }
 .tiles.three .tile { min-height: 160px; font-size: 1.3rem; }
 
 /* The big Speak button: the main way to use the app. */
-.mic.mic-hero { min-height: 230px; flex-direction: row; gap: 26px; padding: 24px 28px; text-align: left; border-radius: 28px;
+.mic.mic-hero { min-height: 230px; flex-direction: row; gap: 26px; padding: 24px 28px; text-align: start; border-radius: 28px;
   background: linear-gradient(135deg, #2563a8, #1f6f6b); box-shadow: 0 12px 30px rgba(37, 99, 168, .28); }
 .mic-hero .ico { flex: none; width: 132px; height: 132px; border-radius: 50%; background: rgba(255,255,255,.18); border: 4px solid rgba(255,255,255,.55); display: grid; place-items: center; font-size: 4.2rem; }
 .mic-text { display: flex; flex-direction: column; gap: 8px; }

@@ -1,8 +1,8 @@
 # Sthir Swar — "steady voice"
 
 A voice-first companion for people with Parkinson's disease and their caregivers.
-When shaking hands make phones hard to use, the voice takes over: speak in **English, Hindi, Tamil,
-Bengali, Telugu, Marathi or Punjabi** (or a mix) to log symptoms, answer medicine reminders and call for help.
+When shaking hands make phones hard to use, the voice takes over: speak in **English, Hindi, Bengali, Marathi, Telugu, Tamil, Gujarati, Urdu, Kannada, Malayalam
+or Punjabi** (or a mix) to log symptoms, answer medicine reminders and call for help.
 
 ## Run it (one command)
 

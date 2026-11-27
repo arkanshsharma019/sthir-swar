@@ -141,6 +141,7 @@ async function recordAndTranscribe({ onText, maxMs }) {
 }
 
 // Speaking. Sarvam's Indian voices if available, else the device's own voices.
+const SARVAM_VOICES = new Set(["en", "hi", "bn", "mr", "te", "ta", "gu", "kn", "ml", "pa"]); // no Urdu voice yet
 let currentAudio = null;
 function stopSpeaking() {
   currentAudio?.pause();
@@ -159,7 +160,7 @@ function pickVoice(code) {
 async function say(text) {
   if (!text) return;
   stopSpeaking();
-  if (state.voice === "sarvam" && !state.sarvamVoiceFailed) {
+  if (state.voice === "sarvam" && !state.sarvamVoiceFailed && SARVAM_VOICES.has(getLang())) {
     try {
       const res = await fetch("/api/tts", {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -243,11 +244,11 @@ function showBubble(el, label, text) {
 const emergencyContacts = () => state.contacts.filter((c) => c.kind !== "other");
 const primaryContact = () => emergencyContacts().find((c) => c.is_primary) || emergencyContacts()[0];
 const RELATION_WORDS = {
-  son: ["son", "beta", "बेटा", "மகன்", "ছেলে", "కొడుకు", "मुलगा", "ਪੁੱਤ"],
-  daughter: ["daughter", "beti", "बेटी", "மகள்", "মেয়ে", "కూతురు", "मुलगी", "ਧੀ"],
-  doctor: ["doctor", "dr", "neurologist", "डॉक्टर", "டாக்டர்", "ডাক্তার", "డాక్టర్", "ਡਾਕਟਰ"],
-  wife: ["wife", "patni", "पत्नी", "மனைவி", "বউ", "భార్య", "बायको", "ਪਤਨੀ"],
-  husband: ["husband", "pati", "पति", "கணவர்", "স্বামী", "భర్త", "नवरा", "ਪਤੀ"],
+  son: ["son", "beta", "बेटा", "மகன்", "ছেলে", "కొడుకు", "मुलगा", "ਪੁੱਤ", "દીકરો", "بیٹا", "ಮಗ", "മകൻ"],
+  daughter: ["daughter", "beti", "बेटी", "மகள்", "মেয়ে", "కూతురు", "मुलगी", "ਧੀ", "દીકરી", "بیٹی", "ಮಗಳು", "മകൾ"],
+  doctor: ["doctor", "dr", "neurologist", "डॉक्टर", "டாக்டர்", "ডাক্তার", "డాక్టర్", "ਡਾਕਟਰ", "ડૉક્ટર", "ڈاکٹر", "ಡಾಕ್ಟರ್", "ഡോക്ടർ"],
+  wife: ["wife", "patni", "पत्नी", "மனைவி", "বউ", "భార్య", "बायको", "ਪਤਨੀ", "પત્ની", "بیوی", "ಹೆಂಡತಿ", "ഭാര്യ"],
+  husband: ["husband", "pati", "पति", "கணவர்", "স্বামী", "భర్త", "नवरा", "ਪਤੀ", "પતિ", "شوہر", "ಗಂಡ", "ഭർത്താവ്"],
 };
 /** Find a saved contact by name or relation ("Sunita", "my daughter", "beti", "doctor"). */
 function findContact(words) {
@@ -861,22 +862,23 @@ function route() {
 // ------------------------------------------------------------- language --
 function applyLang() {
   document.documentElement.lang = getLang();
+  document.documentElement.dir = LANGS[getLang()].dir || "ltr"; // Urdu reads right to left
   document.querySelectorAll("[data-t]").forEach((el) => { el.textContent = t(el.dataset.t); });
   document.querySelectorAll("[data-t-ph]").forEach((el) => { el.placeholder = t(el.dataset.tPh); });
   document.querySelectorAll("[data-t-label]").forEach((el) => { el.label = t(el.dataset.tLabel); });
   document.querySelectorAll("[data-t-n]").forEach((el) => { el.textContent = t("lastDays", { n: el.dataset.tN }); });
   document.querySelectorAll(".mic").forEach((b) => { b.dataset.idle = b.querySelector("[data-t]").textContent; });
-  $("#langs").innerHTML = Object.entries(LANGS).map(([code, l]) =>
-    `<button type="button" data-lang="${code}" aria-pressed="${code === getLang()}">${l.label}</button>`).join("");
-  $("#langs").querySelectorAll("button").forEach((b) => {
-    b.onclick = async () => {
-      setLang(b.dataset.lang);
-      applyLang();
-      route();
-      say(t("tagline"));
-      state.settings = await post("/api/settings", { language: b.dataset.lang }).catch(() => state.settings);
-    };
-  });
+  // One big language menu: 11 languages would not fit as buttons on a phone.
+  $("#langs").innerHTML = `<label class="lang-pick"><span aria-hidden="true">🌐</span>
+    <select id="lang-select" aria-label="Language">${Object.entries(LANGS).map(([code, l]) =>
+      `<option value="${code}" ${code === getLang() ? "selected" : ""}>${l.label}</option>`).join("")}</select></label>`;
+  $("#lang-select").onchange = async (e) => {
+    setLang(e.target.value);
+    applyLang();
+    route();
+    say(t("tagline"));
+    state.settings = await post("/api/settings", { language: e.target.value }).catch(() => state.settings);
+  };
 }
 
 // ----------------------------------------------------------------- start --
