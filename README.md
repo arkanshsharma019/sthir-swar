@@ -14,6 +14,10 @@ Then open **http://localhost:8000** in **Chrome or Edge** (these have built-in s
 and allow the microphone.
 
 No secret keys are needed: the app starts and every feature works without one.
+Optional keys make it smarter: `GEMINI_API_KEY` (or `ANTHROPIC_API_KEY`) lets Speak understand any sentence
+("beti ko phone lagao", "my head is bursting"), and `SARVAM_API_KEY` adds Indian speech models for listening and
+natural Indian voices for replies in all 7 languages. If a key is missing or a service fails, the app falls back to
+the browser's own speech and keyword matching.
 Optionally, copy `.env.example` to `.env` and set `GEMINI_API_KEY` (Google AI Studio) or
 `ANTHROPIC_API_KEY` (Claude). With a key, "How I feel" understands free speech and Speak
 answers general questions; without one, keywords and big buttons are used instead.
@@ -35,7 +39,7 @@ python3 -m venv .venv && .venv/bin/pip install -r backend/requirements.txt
 | **Speak** (the big button on the home screen) | Tap once and talk; it listens right there. "My shaking is worse" logs a symptom, "I took my medicine" / "dawai le li" ticks the waiting dose, "I missed my tablet" records it and offers to notify the caregiver, "help" / "madad" / "உதவி" starts a call, "send a message" dictates one. Typing works too. |
 | **How I feel** | Say anything in your own words: "subah se haath kaanp raha hai aur neend nahi aayi". With AI on, every symptom in the sentence is decoded (kind, worse/better, timing), saved, and shown with a **Not right** button to undo. Urgent things (fall with head injury, choking, fainting) bring up a Help button. Without AI, keywords decode it. Big symptom buttons always work. Falls and dizziness alert the caregiver. |
 | **Medicines** | Full-screen, flashing, spoken reminder with a chime and vibration: "Did you take it?" Answer by voice ("haan", "not yet", "I missed it") or with one of three huge buttons. "Not yet" reminds again in 10 min; no answer in 60 min counts as missed and alerts the caregiver. Today's list has one big tick per dose (turns green when taken) and a "Not taken?" button; missed doses keep a "Notify on WhatsApp" button. The app never changes a dose. |
-| **Help** | One giant button or saying "help". It asks "Shall I call Ravi?" and waits for yes/no before calling. Dictated messages are read back before sending (WhatsApp). |
+| **Help** | One giant button or saying "help" calls the emergency contact after a yes/no check. Below it, "Call or message someone" lists everyone else (family, friends, doctor) with big Call and Message buttons, or say "call Sunita" / "tell the doctor my tremor is worse". Messages are read back before sending (WhatsApp). |
 | **Caregiver** | Set up medicines (pick from common Parkinson's medicines or type any name), contacts and names; see alerts; add observations. |
 | **Doctor summary** | Printable, in the chosen language: doses taken/missed, symptom counts and timeline, hours since the last dose for each symptom, falls, help requests, caregiver notes, and neutral "things to discuss" (e.g. symptoms coming 3+ hours after a dose). It describes; the clinician decides. |
 

@@ -82,8 +82,11 @@
       <button class="help-big" id="help-big" type="button"><span data-t="helpBig"></span></button>
       <p class="hint center" data-t="helpPrompt"></p>
       <div class="bubble reply" id="help-reply" hidden></div>
+      <h2 data-t="emergencyContacts"></h2>
       <div class="contacts" id="help-contacts"></div>
       <button class="btn btn-wide" id="help-message" type="button">✉️ <span data-t="sendMessage"></span></button>
+      <h2 id="help-people-title" data-t="everyone" hidden></h2>
+      <div class="people" id="help-people"></div>
     </section>
 
     <!-- CAREGIVER -->
@@ -151,8 +154,12 @@
         <h2 data-t="cg_contacts"></h2>
         <ul class="list compact" id="cg-contacts"></ul>
         <form id="cg-contact-form" class="grid">
+          <button class="btn btn-ghost" id="cg-pick-contact" type="button" hidden data-t="cg_pickContact"></button>
           <label><span data-t="cg_name"></span> <input name="name" required></label>
           <label><span data-t="cg_phone"></span> <input name="phone" required placeholder="+91…"></label>
+          <label><span data-t="cg_kind"></span>
+            <select name="kind"><option value="emergency" data-t="cg_kindEmergency"></option><option value="other" data-t="cg_kindOther"></option></select>
+          </label>
           <label><span data-t="cg_relation"></span> <input name="relation" data-t-ph="cg_relationPh"></label>
           <label class="check"><input type="checkbox" name="is_primary"> <span data-t="cg_primary"></span></label>
           <button class="btn" data-t="cg_addContact"></button>

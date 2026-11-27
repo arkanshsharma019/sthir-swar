@@ -23,51 +23,175 @@ async function api(path, options = {}) {
 const post = (path, body = {}) => api(path, { method: "POST", body: { now: localNow(), ...body } });
 
 // ---------------------------------------------------------------- voice --
+// Two ways to hear the person:
+//  - Sarvam (if the server has SARVAM_API_KEY): record the voice, stop by itself when they pause,
+//    and turn it into text with Indian speech models. Better for accents, soft voices and mixed languages.
+//  - The browser's own speech recognition (free, no key): used otherwise, or if Sarvam fails.
+// Both keep listening through short pauses, so long, natural sentences are not cut off.
 const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-let activeRecognition = null;
+const canRecord = () => !!(window.MediaRecorder && navigator.mediaDevices?.getUserMedia);
+const useSarvamEars = () => state.voice === "sarvam" && !state.sarvamEarsFailed && canRecord();
+const canListen = () => useSarvamEars() || !!Recognition;
 
+let activeListening = null; // { finish(), abort() } for whichever engine is listening
+
+/** Cancel listening and throw away what was heard (e.g. when leaving a screen). */
 function stopListening() {
-  try { activeRecognition?.abort(); } catch { /* already stopped */ }
-  activeRecognition = null;
+  activeListening?.abort();
+  activeListening = null;
+}
+/** "I'm done talking": stop and use what was heard so far. */
+function finishListening() {
+  activeListening?.finish();
 }
 
 /** Listen once. Resolves with what was heard, or null. */
-function listen({ onText, maxMs = 9000 } = {}) {
+async function listen({ onText, maxMs = 20000 } = {}) {
+  stopListening();
+  if (useSarvamEars()) {
+    const result = await recordAndTranscribe({ onText, maxMs: Math.min(maxMs, 25000) });
+    if (result !== undefined) return result; // undefined = Sarvam failed: fall back to the browser below
+    toast(esc(t("notUnderstood")));
+  }
+  return browserListen({ onText, maxMs });
+}
+
+function browserListen({ onText, maxMs }) {
   return new Promise((resolve) => {
     if (!Recognition) return resolve(null);
-    stopListening();
     const rec = new Recognition();
     rec.lang = LANGS[getLang()].speech;
     rec.interimResults = true;
+    rec.continuous = true; // keep going through short pauses
     rec.maxAlternatives = 1;
     let heard = "";
+    let discard = false;
+    let silenceTimer = null;
+    const stop = () => { try { rec.stop(); } catch { /* ended */ } };
+    const quietFor = (ms) => { clearTimeout(silenceTimer); silenceTimer = setTimeout(stop, ms); };
     rec.onresult = (e) => {
       heard = Array.from(e.results).map((r) => r[0].transcript).join(" ");
       onText?.(heard);
+      quietFor(1800); // ~2 seconds of quiet after speaking = they have finished
     };
     rec.onerror = () => {};
-    rec.onend = () => { if (activeRecognition === rec) activeRecognition = null; resolve(heard.trim() || null); };
-    activeRecognition = rec;
+    rec.onend = () => {
+      clearTimeout(silenceTimer);
+      if (activeListening?.rec === rec) activeListening = null;
+      resolve(discard ? null : heard.trim() || null);
+    };
+    activeListening = { rec, finish: stop, abort: () => { discard = true; try { rec.abort(); } catch { /* ended */ } } };
     try { rec.start(); } catch { resolve(null); }
-    setTimeout(() => { try { rec.stop(); } catch { /* ended */ } }, maxMs);
+    quietFor(8000); // nothing said at all for 8 seconds: stop
+    setTimeout(stop, maxMs);
   });
+}
+
+/**
+ * Record with the microphone, stop when the person pauses, then send to Sarvam.
+ * Resolves with text, null (nothing said), or undefined (Sarvam failed: use the browser instead).
+ */
+async function recordAndTranscribe({ onText, maxMs }) {
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); } catch { return null; }
+  const recorder = new MediaRecorder(stream);
+  const chunks = [];
+  recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+
+  // Watch the loudness to notice when they start and stop talking.
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const analyser = ctx.createAnalyser();
+  analyser.fftSize = 1024;
+  ctx.createMediaStreamSource(stream).connect(analyser);
+  const samples = new Float32Array(analyser.fftSize);
+  const startedAt = Date.now();
+  let spoke = false;
+  let lastSound = Date.now();
+  let discard = false;
+
+  const stopped = new Promise((resolve) => { recorder.onstop = resolve; });
+  const stop = () => { if (recorder.state !== "inactive") recorder.stop(); };
+  const timer = setInterval(() => {
+    analyser.getFloatTimeDomainData(samples);
+    const level = Math.sqrt(samples.reduce((sum, x) => sum + x * x, 0) / samples.length);
+    if (level > 0.02) { spoke = true; lastSound = Date.now(); }
+    const now = Date.now();
+    if ((spoke && now - lastSound > 1600) || (!spoke && now - startedAt > 8000) || now - startedAt > maxMs) stop();
+  }, 100);
+  activeListening = { finish: stop, abort: () => { discard = true; stop(); } };
+  recorder.start();
+  await stopped;
+  clearInterval(timer);
+  stream.getTracks().forEach((track) => track.stop());
+  ctx.close().catch(() => {});
+  if (activeListening?.finish === stop) activeListening = null;
+  if (discard || !spoke || !chunks.length) return null;
+
+  onText?.("…");
+  const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
+  const form = new FormData();
+  form.append("audio", blob, blob.type.includes("mp4") ? "speech.mp4" : "speech.webm");
+  form.append("language", getLang());
+  try {
+    const res = await fetch("/api/stt", { method: "POST", body: form }).then((r) => r.json());
+    if (res.ok) { if (res.text) onText?.(res.text); return res.text || null; }
+  } catch { /* fall through */ }
+  state.sarvamEarsFailed = true; // e.g. credit used up: use the browser from now on
+  return undefined;
+}
+
+// Speaking. Sarvam's Indian voices if available, else the device's own voices.
+let currentAudio = null;
+function stopSpeaking() {
+  currentAudio?.pause();
+  currentAudio = null;
+  if ("speechSynthesis" in window) speechSynthesis.cancel();
 }
 
 function pickVoice(code) {
   const voices = speechSynthesis.getVoices();
-  return voices.find((v) => v.lang === code) || voices.find((v) => v.lang?.startsWith(code.slice(0, 2)));
+  const find = (c) => voices.find((v) => v.lang === c) || voices.find((v) => v.lang?.replace("_", "-").startsWith(c.slice(0, 2)));
+  // Marathi uses the same script as Hindi, so a Hindi voice reads it well when no Marathi voice exists.
+  return find(code) || (code.startsWith("mr") ? find("hi-IN") : null);
 }
 
 /** Speak aloud and wait until finished (so the mic does not hear us). */
-function say(text) {
+async function say(text) {
+  if (!text) return;
+  stopSpeaking();
+  if (state.voice === "sarvam" && !state.sarvamVoiceFailed) {
+    try {
+      const res = await fetch("/api/tts", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, language: getLang() }),
+      }).then((r) => r.json());
+      if (res.ok) {
+        const audio = new Audio(`data:${res.mime};base64,${res.audio}`);
+        currentAudio = audio;
+        await new Promise((resolve) => {
+          audio.onended = resolve;
+          audio.onerror = resolve;
+          audio.onpause = resolve;
+          setTimeout(resolve, 2000 + text.length * 120);
+          audio.play().catch(resolve);
+        });
+        return;
+      }
+      state.sarvamVoiceFailed = true;
+    } catch { /* fall back to the device voice */ }
+  }
+  return browserSay(text);
+}
+
+function browserSay(text) {
   return new Promise((resolve) => {
-    if (!("speechSynthesis" in window) || !text) return resolve();
-    speechSynthesis.cancel();
+    if (!("speechSynthesis" in window)) return resolve();
     const u = new SpeechSynthesisUtterance(text);
     const code = LANGS[getLang()].speech;
     u.lang = code;
     const voice = pickVoice(code);
     if (voice) u.voice = voice;
+    else if (getLang() !== "en" && !state.warnedNoVoice) { state.warnedNoVoice = true; toast(esc(t("noVoice")), 7000); }
     u.rate = 0.92; // a little slower is easier to follow
     let done = false;
     const finish = () => { if (!done) { done = true; resolve(); } };
@@ -115,7 +239,33 @@ function showBubble(el, label, text) {
   el.innerHTML = label ? `<small>${esc(label)}</small>${esc(text)}` : esc(text);
 }
 
-const primaryContact = () => state.contacts.find((c) => c.is_primary) || state.contacts[0];
+// Emergency contacts are used by HELP; everyone else can be called or messaged by name.
+const emergencyContacts = () => state.contacts.filter((c) => c.kind !== "other");
+const primaryContact = () => emergencyContacts().find((c) => c.is_primary) || emergencyContacts()[0];
+const RELATION_WORDS = {
+  son: ["son", "beta", "बेटा", "மகன்", "ছেলে", "కొడుకు", "मुलगा", "ਪੁੱਤ"],
+  daughter: ["daughter", "beti", "बेटी", "மகள்", "মেয়ে", "కూతురు", "मुलगी", "ਧੀ"],
+  doctor: ["doctor", "dr", "neurologist", "डॉक्टर", "டாக்டர்", "ডাক্তার", "డాక్టర్", "ਡਾਕਟਰ"],
+  wife: ["wife", "patni", "पत्नी", "மனைவி", "বউ", "భార్య", "बायको", "ਪਤਨੀ"],
+  husband: ["husband", "pati", "पति", "கணவர்", "স্বামী", "భర్త", "नवरा", "ਪਤੀ"],
+};
+/** Find a saved contact by name or relation ("Sunita", "my daughter", "beti", "doctor"). */
+function findContact(words) {
+  const q = ` ${String(words || "").toLowerCase()} `;
+  if (!q.trim()) return null;
+  const byName = state.contacts.find((c) => {
+    const name = c.name.toLowerCase().replace(/^dr\.?\s*/, "");
+    return q.includes(name) || q.includes(name.split(" ")[0]) || name.includes(q.trim());
+  });
+  if (byName) return byName;
+  for (const [relation, synonyms] of Object.entries(RELATION_WORDS)) {
+    if (synonyms.some((w) => q.includes(w.length <= 3 ? ` ${w} ` : w))) {
+      const c = state.contacts.find((x) => [relation, ...synonyms].some((w) => x.relation.toLowerCase().includes(w)));
+      if (c) return c;
+    }
+  }
+  return null;
+}
 const caregiverName = () => state.settings.caregiver_name || primaryContact()?.name || "your caregiver";
 const waLink = (phone, text) => `https://wa.me/${String(phone).replace(/\D/g, "")}?text=${encodeURIComponent(text)}`;
 
@@ -184,7 +334,7 @@ function askWithVoice({ overlay, statusEl, prompt, buttonsAttr, interpret }) {
 
     (async () => {
       await say(prompt);
-      for (let attempt = 0; attempt < 3 && !settled && Recognition; attempt++) {
+      for (let attempt = 0; attempt < 3 && !settled && canListen(); attempt++) {
         statusEl.textContent = `🎙️ ${t("listening")}`;
         const heard = await listen({ onText: (txt) => { statusEl.textContent = `🎙️ “${txt}”`; } });
         if (settled) return;
@@ -296,14 +446,16 @@ async function callFlow(contact = primaryContact()) {
   location.href = `tel:${contact.phone.replace(/[^\d+]/g, "")}`;
 }
 
-async function messageFlow() {
-  const contact = primaryContact();
+async function messageFlow(contact = primaryContact(), presetText = null) {
   const reply = $("#help-reply");
   if (!contact) { showBubble(reply, "", t("noContact")); return say(t("noContact")); }
-  await say(`${t("messageTo", { name: contact.name })} ${t("dictatePrompt")}`);
-  showBubble(reply, "", `🎙️ ${t("listening")}`);
-  let msg = await listen({ maxMs: 15000, onText: (txt) => showBubble(reply, t("youSaid"), txt) });
-  if (!Recognition) msg = window.prompt(t("dictatePrompt")) || null;
+  let msg = presetText;
+  if (!msg) {
+    await say(`${t("messageTo", { name: contact.name })} ${t("dictatePrompt")}`);
+    showBubble(reply, "", `🎙️ ${t("listening")}`);
+    msg = await listen({ maxMs: 25000, onText: (txt) => showBubble(reply, t("youSaid"), txt) });
+  }
+  if (!msg && !canListen()) msg = window.prompt(t("dictatePrompt")) || null;
   if (!msg) { showBubble(reply, "", t("notUnderstood")); return say(t("notUnderstood")); }
   showBubble(reply, t("youSaid"), msg);
   const ok = await confirmByVoice(t("readBack", { msg }));
@@ -320,32 +472,31 @@ async function handleUtterance(text, heard = $("#speak-heard"), replyEl = $("#sp
   const respond = async (msg) => { showBubble(replyEl, "", msg); await say(msg); };
 
   const intent = detectIntent(text);
+  // Safety first: "help" never waits for the AI.
   if (intent === "help") { location.hash = "#help"; return callFlow(); }
-  if (intent === "message") { location.hash = "#help"; return messageFlow(); }
-  if (intent === "call") { location.hash = "#help"; return callFlow(); }
-  // "I took my tablet" / "I missed my tablet": record the dose without opening anything.
+  // "I took / missed my tablet": clear keyword sentences are recorded straight away.
   const took = intent === "medicine" && detectTook(text); // needs a medicine word, so "I took a walk" doesn't count
   const missed = intent === "medicine" && detectAnswer(text) === "missed";
   if (took || missed) {
-    const dose = await doseToAnswer(took);
-    if (!dose) {
-      const next = await nextDose();
-      await respond(`${t("noDoseNow")}${next ? " " + t("nextDose", next) : ""}`);
-    } else {
-      await post("/api/doses", { medicine_id: dose.medicine_id, scheduled_for: dose.scheduled_for, status: took ? "taken" : "missed", source: "voice" });
-      if (took) {
-        await respond(t("takenNamed", { name: dose.name, time: dose.time }));
-      } else {
-        const msg = t("missedOk", { caregiver: caregiverName() });
-        showBubble(replyEl, "", msg);
-        replyEl.insertAdjacentHTML("beforeend", notifyButton(`Sthir Swar update: ${patientName()} missed ${dose.name} ${dose.dose} (due ${dose.time}). They have not taken an extra dose.`));
-        await say(msg);
-      }
-      if (location.hash === "#meds") renderMeds();
-      if (location.hash === "#home" || !location.hash) renderHome();
-    }
+    await answerDose(took, replyEl, respond);
     if (detectSymptom(text)) return recordFeeling(text, replyEl); // "I took it but I'm still shaking"
     return;
+  }
+
+  // With an AI key: the AI works out what they mean, however they say it.
+  if (state.aiEnabled) {
+    showBubble(replyEl, "", t("understanding"));
+    const res = await post("/api/speak", { text, language: getLang() }).catch(() => ({}));
+    if (res.ok) return actOnMeaning(res, text, replyEl, respond);
+  }
+
+  // Without AI (or if it failed): keywords.
+  if (intent === "message") { location.hash = "#help"; return messageFlow(findContact(text) || primaryContact()); }
+  if (intent === "call") {
+    const person = findContact(text);
+    location.hash = "#help";
+    if (person) return callFlow(person);
+    return state.contacts.some((c) => c.kind === "other") ? say(t("whoToCall")) : callFlow();
   }
   if (detectSymptom(text)) return recordFeeling(text, replyEl);
   if (intent === "medicine") {
@@ -374,6 +525,54 @@ async function handleUtterance(text, heard = $("#speak-heard"), replyEl = $("#sp
   const res = await post("/api/ask", { text, language: getLang() }).catch(() => ({}));
   if (res.configured === false) return guideWithNote();
   return respond(res.answer || t("aiError"));
+}
+
+/** Record a dose as taken or missed from what was said. */
+async function answerDose(took, replyEl, respond) {
+  const dose = await doseToAnswer(took);
+  if (!dose) {
+    const next = await nextDose();
+    return respond(`${t("noDoseNow")}${next ? " " + t("nextDose", next) : ""}`);
+  }
+  await post("/api/doses", { medicine_id: dose.medicine_id, scheduled_for: dose.scheduled_for, status: took ? "taken" : "missed", source: "voice" });
+  if (location.hash === "#meds") renderMeds();
+  if (location.hash === "#home" || !location.hash) renderHome();
+  if (took) return respond(t("takenNamed", { name: dose.name, time: dose.time }));
+  const msg = t("missedOk", { caregiver: caregiverName() });
+  showBubble(replyEl, "", msg);
+  replyEl.insertAdjacentHTML("beforeend", notifyButton(`Sthir Swar update: ${patientName()} missed ${dose.name} ${dose.dose} (due ${dose.time}). They have not taken an extra dose.`));
+  return say(msg);
+}
+
+/** Do what the AI understood. The app (not the AI) always confirms before calling or sending. */
+async function actOnMeaning(res, text, replyEl, respond) {
+  switch (res.action) {
+    case "symptoms":
+      if (!res.symptoms.length) return respond(res.reply || t("notUnderstood"));
+      showFeelingResult(replyEl, { reply: res.reply, items: res.symptoms, urgent: res.urgent }, text);
+      return say(res.reply);
+    case "dose_taken":
+    case "dose_missed":
+      return answerDose(res.action === "dose_taken", replyEl, respond);
+    case "help":
+      location.hash = "#help";
+      return callFlow();
+    case "call":
+    case "message": {
+      const person = findContact(res.contact) || (res.contact ? null : undefined);
+      if (person === null) return respond(t("noSuchContact", { name: res.contact }));
+      location.hash = "#help";
+      if (!person) return say(t("whoToCall"));
+      return res.action === "call" ? callFlow(person) : messageFlow(person, res.message_text || null);
+    }
+    case "open_screen":
+      location.hash = `#${res.screen || "home"}`;
+      return;
+    case "question":
+      return respond(res.reply || t("aiError"));
+    default:
+      return respond(t("guide"));
+  }
 }
 
 // ---------------------------------------------------------------- views --
@@ -464,9 +663,26 @@ async function renderMeds() {
 }
 
 function renderHelp() {
-  $("#help-contacts").innerHTML = state.contacts.map((c, i) =>
-    `<button type="button" data-i="${i}">📞 ${esc(c.name)} <small>${esc(c.relation)}</small></button>`).join("");
-  $("#help-contacts").querySelectorAll("button").forEach((b) => { b.onclick = () => callFlow(state.contacts[b.dataset.i]); });
+  const emergency = emergencyContacts();
+  const others = state.contacts.filter((c) => c.kind === "other");
+  $("#help-contacts").innerHTML = emergency.map((c) =>
+    `<button type="button" data-id="${c.id}">📞 ${esc(c.name)} <small>${esc(c.relation)}</small></button>`).join("");
+  $("#help-contacts").querySelectorAll("button").forEach((b) => {
+    b.onclick = () => callFlow(state.contacts.find((c) => c.id === +b.dataset.id));
+  });
+  // Everyone else: one row each, with a big Call and a big Message button.
+  $("#help-people-title").hidden = !others.length;
+  $("#help-people").innerHTML = others.map((c) => `
+    <div class="person" data-id="${c.id}">
+      <span class="who"><b>${esc(c.name)}</b><small>${esc(c.relation)}</small></span>
+      <button type="button" class="btn btn-yes" data-do="call">📞 ${esc(t("call"))}</button>
+      <button type="button" class="btn" data-do="message">💬 ${esc(t("message"))}</button>
+    </div>`).join("");
+  $("#help-people").querySelectorAll(".person").forEach((row) => {
+    const c = state.contacts.find((x) => x.id === +row.dataset.id);
+    row.querySelector('[data-do="call"]').onclick = () => callFlow(c);
+    row.querySelector('[data-do="message"]').onclick = () => messageFlow(c);
+  });
 }
 
 // Dates and times written the way the chosen language writes them.
@@ -508,7 +724,8 @@ async function renderCaregiver() {
   $("#cg-meds").innerHTML = meds.map((m) =>
     `<li><span><b>${esc(m.name)}</b> ${esc(m.dose)} · ${esc(m.times.join(", "))}</span><button class="x" data-med="${m.id}" type="button" aria-label="Remove">✕</button></li>`).join("") || `<li>${esc(t("cg_noMeds"))}</li>`;
   $("#cg-contacts").innerHTML = state.contacts.map((c) =>
-    `<li><span><b>${esc(c.name)}</b> ${esc(c.phone)} ${c.is_primary ? "⭐" : ""} <small class="muted">${esc(c.relation)}</small></span><button class="x" data-contact="${c.id}" type="button" aria-label="Remove">✕</button></li>`).join("") || `<li>${esc(t("cg_noContacts"))}</li>`;
+    `<li><span><b>${esc(c.name)}</b> ${esc(c.phone)} ${c.is_primary ? "⭐" : ""} <small class="muted">${esc(c.relation)}</small>
+      <span class="tag">${esc(t(c.kind === "other" ? "cg_kindOther" : "cg_kindEmergency"))}</span></span><button class="x" data-contact="${c.id}" type="button" aria-label="Remove">✕</button></li>`).join("") || `<li>${esc(t("cg_noContacts"))}</li>`;
   $("#cg-notes").innerHTML = notes.map((n) => `<li><span>${esc(n.text)}</span><span class="tag">${esc(dateText(n.created_at))}</span></li>`).join("");
   $("#cg-ai").textContent = state.aiEnabled
     ? t("cg_aiOn", { provider: state.aiProvider === "claude" ? "Claude" : "Gemini" })
@@ -540,6 +757,18 @@ function bindCaregiverForms() {
     await post("/api/medicines", { name, dose: d.dose, times: d.times.split(/[,\s]+/).filter(Boolean) });
     form.reset(); otherBox.hidden = true; renderCaregiver(); toast(esc(t("cg_medAdded")));
   });
+  // On Android Chrome, the caregiver can pick a person from the phone's contacts instead of typing.
+  const picker = $("#cg-pick-contact");
+  picker.hidden = !("contacts" in navigator && "select" in navigator.contacts);
+  picker.onclick = async () => {
+    try {
+      const [person] = await navigator.contacts.select(["name", "tel"], { multiple: false });
+      if (!person) return;
+      const form = $("#cg-contact-form");
+      form.name.value = person.name?.[0] || "";
+      form.phone.value = (person.tel?.[0] || "").replace(/[^\d+]/g, "");
+    } catch { /* cancelled */ }
+  };
   $("#cg-contact-form").onsubmit = guard(async (form) => {
     const d = formData(form);
     state.contacts = await post("/api/contacts", { ...d, is_primary: !!d.is_primary });
@@ -657,6 +886,7 @@ async function loadBasics() {
   state.settings = settings;
   state.aiEnabled = status.ai_enabled;
   state.aiProvider = status.ai_provider;
+  state.voice = status.voice;
   setLang(settings.language || "en");
   await loadContacts();
   addMedicineWords((await api("/api/medicines")).map((m) => m.name)); // "I missed the Syndopa" counts as medicine
@@ -665,9 +895,9 @@ async function loadBasics() {
 
 function bindMic(btn, onHeard) {
   btn.onclick = async () => {
-    if (!Recognition) { toast(esc(t("noSpeech")), 8000); return; }
-    if (btn.classList.contains("listening")) { stopListening(); return; }
-    speechSynthesis.cancel();
+    if (!canListen()) { toast(esc(t("noSpeech")), 8000); return; }
+    if (btn.classList.contains("listening")) { finishListening(); return; } // tap again = "I'm done"
+    stopSpeaking();
     setMic(btn, true);
     const heard = await listen();
     setMic(btn, false);
@@ -700,8 +930,8 @@ async function start() {
   $("#help-big").onclick = () => callFlow();
   $("#help-message").onclick = () => messageFlow();
   $("#sum-days").onchange = renderSummary;
-  if (!Recognition) toast(esc(t("noSpeech")), 8000);
-  speechSynthesis?.getVoices(); // warm up the voice list
+  if (!canListen()) toast(esc(t("noSpeech")), 8000);
+  if ("speechSynthesis" in window) speechSynthesis.getVoices(); // warm up the voice list
   window.addEventListener("hashchange", route);
   route();
   checkDue();

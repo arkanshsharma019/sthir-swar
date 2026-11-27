@@ -21,7 +21,11 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException
+import base64
+from collections import OrderedDict
+
+import httpx
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -108,6 +112,10 @@ def rows(conn, sql, args=()):
 def init_db():
     with db() as conn:
         conn.executescript(SCHEMA)
+        # Older databases: contacts gained a kind (emergency for HELP, other for everyday calls).
+        columns = [r["name"] for r in rows(conn, "PRAGMA table_info(contacts)")]
+        if "kind" not in columns:
+            conn.execute("ALTER TABLE contacts ADD COLUMN kind TEXT DEFAULT 'emergency'")
 
 
 def now_or(value: Optional[str]) -> datetime:
@@ -180,6 +188,7 @@ class Contact(BaseModel):
     phone: str = Field(min_length=3)
     relation: str = ""
     is_primary: bool = False
+    kind: str = "emergency"  # emergency (used by HELP) | other (family, friends, doctor)
 
 
 class Event(BaseModel):
@@ -203,7 +212,8 @@ class Ask(BaseModel):
 
 @app.get("/api/status")
 def status():
-    return {"ai_enabled": ai_provider() is not None, "ai_provider": ai_provider()}
+    return {"ai_enabled": ai_provider() is not None, "ai_provider": ai_provider(),
+            "voice": "sarvam" if os.environ.get("SARVAM_API_KEY") else None}
 
 
 @app.get("/api/settings")
@@ -379,18 +389,21 @@ def list_symptoms(limit: int = 30):
 @app.get("/api/contacts")
 def list_contacts():
     with db() as conn:
-        return rows(conn, "SELECT * FROM contacts ORDER BY is_primary DESC, name")
+        return rows(conn, "SELECT * FROM contacts ORDER BY kind = 'other', is_primary DESC, name")
 
 
 @app.post("/api/contacts")
 def add_contact(c: Contact):
     with db() as conn:
-        if c.is_primary:
+        kind = "other" if c.kind == "other" else "emergency"
+        primary = kind == "emergency" and c.is_primary
+        if primary:
             conn.execute("UPDATE contacts SET is_primary = 0")
-        has_any = conn.execute("SELECT COUNT(*) FROM contacts").fetchone()[0]
+        has_emergency = conn.execute("SELECT COUNT(*) FROM contacts WHERE kind = 'emergency'").fetchone()[0]
         conn.execute(
-            "INSERT INTO contacts (name, phone, relation, is_primary) VALUES (?, ?, ?, ?)",
-            (c.name.strip(), c.phone.strip(), c.relation.strip(), int(c.is_primary or not has_any)),
+            "INSERT INTO contacts (name, phone, relation, is_primary, kind) VALUES (?, ?, ?, ?, ?)",
+            (c.name.strip(), c.phone.strip(), c.relation.strip(),
+             int(primary or (kind == "emergency" and not has_emergency)), kind),
         )
     return list_contacts()
 
@@ -536,6 +549,24 @@ ASK_SYSTEM = (
     "the person may mix languages. " + SAFETY_RULES
 )
 
+# Everyday ways people describe symptoms. Shown to the AI as examples so it maps
+# natural speech ("my head is burning") to the right symptom.
+EVERYDAY_EXAMPLES = (
+    "Examples of everyday speech and the symptom kind: "
+    "'my head is burning / bursting', 'sar phat raha hai', 'सर फट रहा है', 'सिर में दर्द', 'தலைவலி', 'মাথা ব্যথা', "
+    "'తలనొప్పి', 'डोकं दुखतंय', 'ਸਿਰ ਦਰਦ' -> pain (headache); "
+    "'my hands won't stop', 'haath hil raha hai', 'கை நடுங்குது', 'হাত কাঁপছে', 'చేయి వణుకుతోంది', 'हात थरथरतोय', "
+    "'ਹੱਥ ਕੰਬ ਰਿਹਾ' -> tremor; "
+    "'my feet got glued to the floor', 'pair jam gaye', 'पैर नहीं उठ रहे', 'கால் நகரல', 'పాదాలు కదలట్లేదు' -> freezing; "
+    "'body feels like wood', 'sharir akad gaya', 'உடம்பு விறைப்பா இருக்கு' -> stiffness; "
+    "'everything is spinning', 'chakkar aa raha hai', 'आँखों के आगे अँधेरा' -> dizziness; "
+    "'I slipped', 'gir gaya', 'பாத்ரூம்ல விழுந்தேன்' -> fall; "
+    "'can't sleep at night', 'neend nahi aati', 'राति झोप नाही' -> sleep; "
+    "'feeling low', 'man nahi lag raha', 'ghabrahat ho rahi hai', 'ਮਨ ਉਦਾਸ ਹੈ' -> mood; "
+    "'food gets stuck in my throat', 'khana atak jata hai' -> swallowing; "
+    "'stomach not clear', 'kabz', 'very tired', 'thakaan', 'seeing things that are not there' -> other. "
+)
+
 UNDERSTAND_SYSTEM = (
     "You help a person with Parkinson's disease record how they feel. They speak freely, possibly mixing "
     "English, Hindi, Tamil, Bengali, Telugu, Marathi and Punjabi, and speech recognition may have small errors. "
@@ -544,7 +575,7 @@ UNDERSTAND_SYSTEM = (
     "freezing (feet stuck, cannot start walking), fall (fell or nearly fell), dizziness (light-headed, giddy, faint), "
     "sleep (poor sleep, daytime sleepiness, vivid dreams), mood (sad, anxious, low, worried), pain (any pain or cramps), "
     "swallowing (trouble swallowing, choking, drooling), other (anything else health-related, e.g. constipation, "
-    "hallucinations, nausea, tiredness). "
+    "hallucinations, nausea, tiredness). " + EVERYDAY_EXAMPLES +
     "trend: worse if they say it is worse, more, bad or new; better if improving; otherwise same. "
     "detail: a short English note with any timing or context they gave (e.g. 'since morning, left hand'). "
     "If they describe no symptom, return an empty list. "
@@ -650,29 +681,100 @@ def understand_symptoms(u: Understand):
     except Exception as exc:
         return {"configured": True, "ok": False, "error": type(exc).__name__}
 
-    current = now_or(u.now)
+    saved, alerted = save_ai_symptoms(data, u.text, now_or(u.now), u.reported_by)
+    return {
+        "configured": True, "ok": True, "symptoms": saved,
+        "urgent": bool(data.get("urgent")), "alerted": alerted,
+        "reply": str(data.get("reply", "")).strip(),
+    }
+
+
+def save_ai_symptoms(data: dict, said: str, current: datetime, reported_by: str = "patient"):
+    """Save the symptoms the AI found; alert the caregiver for falls, dizziness or anything urgent."""
     saved, alerted = [], False
     with db() as conn:
         for item in data.get("symptoms", [])[:8]:
             kind = item.get("kind") if item.get("kind") in SYMPTOM_KINDS else "other"
             trend = item.get("trend") if item.get("trend") in ("worse", "better", "same") else "same"
             detail = str(item.get("detail", "")).strip()[:200]
-            text = f"{u.text.strip()}" + (f" [{detail}]" if detail else "")
+            text = said.strip() + (f" [{detail}]" if detail else "")
             cur = conn.execute(
                 "INSERT INTO symptoms (kind, trend, text, created_at, reported_by) VALUES (?, ?, ?, ?, ?)",
-                (kind, trend, text, fmt(current), u.reported_by),
+                (kind, trend, text, fmt(current), reported_by),
             )
             saved.append({"id": cur.lastrowid, "kind": kind, "trend": trend, "detail": detail})
             if kind in ALERT_SYMPTOMS or data.get("urgent"):
                 alerted = True
         if alerted:
             first = saved[0]["kind"] if saved else "other"
-            add_event(conn, "symptom_alert", f"{first}: {u.text.strip()}", current)
-    return {
-        "configured": True, "ok": True, "symptoms": saved,
-        "urgent": bool(data.get("urgent")), "alerted": alerted,
-        "reply": str(data.get("reply", "")).strip(),
-    }
+            add_event(conn, "symptom_alert", f"{first}: {said.strip()}", current)
+    return saved, alerted
+
+
+# --- Speak: one AI call works out what the person means and what the app should do. ---
+
+SPEAK_SYSTEM = (
+    "You are the ears of Sthir Swar, a voice app for a person with Parkinson's disease. They speak freely, "
+    "possibly mixing English, Hindi, Tamil, Bengali, Telugu, Marathi and Punjabi; speech recognition may have errors. "
+    "Decide the ONE main action:\n"
+    "- symptoms: they describe how they feel (list every symptom, same rules as below)\n"
+    "- dose_taken / dose_missed: they say they took, or missed/forgot, a medicine\n"
+    "- help: emergency, they want help now, they fell and are hurt, or feel unsafe\n"
+    "- call: they want to phone someone (put the person in contact)\n"
+    "- message: they want to send someone a message (contact + the message text, in their words)\n"
+    "- open_screen: they want a part of the app (screen: home, symptoms, meds, help, caregiver, summary)\n"
+    "- question: anything else they ask; answer it in reply\n"
+    "- unclear: you cannot tell\n"
+    "contact: copy the matching name from the saved contacts list (match relations too: 'my son' -> the contact "
+    "whose relation is son; 'beta', 'beti', 'doctor' likewise); else the name they said; else empty.\n"
+    "Symptom kinds: tremor, stiffness, slowness, freezing, fall, dizziness, sleep, mood, pain, swallowing, other. "
+    + EVERYDAY_EXAMPLES +
+    "trend: worse, better or same. detail: short English note with timing/context. "
+    "urgent: true only for a fall with injury or head hit, choking, chest pain, trouble breathing, fainting or confusion. "
+    "reply: one or two short, warm sentences to read aloud, in the language given in [language: ..] "
+    "(en English, hi Hindi, ta Tamil, bn Bengali, te Telugu, mr Marathi, pa Punjabi in Gurmukhi script). "
+    "For symptoms, say what you noted; if urgent, tell them to press Help. For a question, answer it. " + SAFETY_RULES
+)
+
+SPEAK_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "action": {"type": "string", "enum": ["symptoms", "dose_taken", "dose_missed", "help", "call", "message",
+                                              "open_screen", "question", "unclear"]},
+        "symptoms": UNDERSTAND_SCHEMA["properties"]["symptoms"],
+        "urgent": {"type": "boolean"},
+        "contact": {"type": "string"},
+        "message_text": {"type": "string"},
+        "screen": {"type": "string", "enum": ["", "home", "symptoms", "meds", "help", "caregiver", "summary"]},
+        "reply": {"type": "string"},
+    },
+    "required": ["action", "symptoms", "urgent", "contact", "message_text", "screen", "reply"],
+    "additionalProperties": False,
+}
+
+
+@app.post("/api/speak")
+def speak(u: Understand):
+    """Work out what a spoken sentence means. Symptoms are saved here; other actions are done by the browser."""
+    if not ai_provider():
+        return {"configured": False, "ok": False}
+    with db() as conn:
+        contacts = rows(conn, "SELECT name, relation FROM contacts")
+        meds = [r["name"] for r in rows(conn, "SELECT name FROM medicines WHERE active = 1")]
+    context = (f"[language: {u.language}] [saved contacts: "
+               f"{'; '.join(c['name'] + (' (' + c['relation'] + ')' if c['relation'] else '') for c in contacts) or 'none'}] "
+               f"[medicines: {', '.join(meds) or 'none'}]\nThey said: {u.text}")
+    try:
+        data = json.loads(ai_call(SPEAK_SYSTEM, context, SPEAK_SCHEMA))
+    except Exception as exc:
+        return {"configured": True, "ok": False, "error": type(exc).__name__}
+    result = {"configured": True, "ok": True, "action": data.get("action", "unclear"),
+              "urgent": bool(data.get("urgent")), "contact": str(data.get("contact", "")).strip(),
+              "message_text": str(data.get("message_text", "")).strip(), "screen": data.get("screen", ""),
+              "reply": str(data.get("reply", "")).strip(), "symptoms": [], "alerted": False}
+    if result["action"] == "symptoms" and data.get("symptoms"):
+        result["symptoms"], result["alerted"] = save_ai_symptoms(data, u.text, now_or(u.now), u.reported_by)
+    return result
 
 
 @app.delete("/api/symptoms/{symptom_id}")
@@ -691,6 +793,75 @@ def ask(q: Ask):
         return {"configured": True, "answer": ai_call(ASK_SYSTEM, f"[language: {q.language}] {q.text}")}
     except Exception as exc:  # network down, bad key, busy model: the app keeps working
         return {"configured": True, "answer": None, "error": type(exc).__name__}
+
+
+# ------------------------------------------------------- optional voice --
+# With SARVAM_API_KEY set, Sarvam (Indian speech models) hears the patient and reads
+# replies aloud in natural Indian voices. Without it, the browser's own speech is used.
+
+SARVAM_URL = "https://api.sarvam.ai"
+SPEECH_LANGS = {"en": "en-IN", "hi": "hi-IN", "ta": "ta-IN", "bn": "bn-IN", "te": "te-IN", "mr": "mr-IN", "pa": "pa-IN"}
+_tts_cache: "OrderedDict[tuple, str]" = OrderedDict()  # repeated phrases are not paid for twice
+
+
+def sarvam_key() -> Optional[str]:
+    return os.environ.get("SARVAM_API_KEY") or None
+
+
+@app.post("/api/stt")
+async def speech_to_text(audio: UploadFile = File(...), language: str = Form("")):
+    """Recorded voice -> text with Sarvam. The language is detected, so mixed speech works."""
+    if not sarvam_key():
+        return {"configured": False, "ok": False}
+    data = await audio.read()
+    if not data:
+        return {"configured": True, "ok": False, "error": "empty"}
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            r = await client.post(
+                f"{SARVAM_URL}/speech-to-text",
+                headers={"api-subscription-key": sarvam_key()},
+                data={"model": "saaras:v4", "mode": "transcribe"},
+                files={"file": (audio.filename or "speech.webm", data, audio.content_type or "audio/webm")},
+            )
+        r.raise_for_status()
+        body = r.json()
+        return {"configured": True, "ok": True, "text": body.get("transcript", "").strip(),
+                "language": body.get("language_code")}
+    except Exception as exc:  # no credit (402), network, bad audio: the browser falls back to its own speech
+        return {"configured": True, "ok": False, "error": type(exc).__name__}
+
+
+class Speech(BaseModel):
+    text: str = Field(min_length=1, max_length=2000)
+    language: str = "en"
+
+
+@app.post("/api/tts")
+async def text_to_speech(sp: Speech):
+    """Text -> natural Indian voice (MP3, base64) with Sarvam."""
+    if not sarvam_key():
+        return {"configured": False, "ok": False}
+    key = (sp.text, sp.language)
+    if key in _tts_cache:
+        _tts_cache.move_to_end(key)
+        return {"configured": True, "ok": True, "audio": _tts_cache[key], "mime": "audio/mpeg"}
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            r = await client.post(
+                f"{SARVAM_URL}/text-to-speech",
+                headers={"api-subscription-key": sarvam_key(), "Content-Type": "application/json"},
+                json={"text": sp.text, "language_code": SPEECH_LANGS.get(sp.language, "hi-IN"),
+                      "model": "bulbul:v3", "pace": 0.9, "output_audio_codec": "mp3"},
+            )
+        r.raise_for_status()
+        audio = "".join(r.json().get("audios", []))
+        _tts_cache[key] = audio
+        if len(_tts_cache) > 200:
+            _tts_cache.popitem(last=False)
+        return {"configured": True, "ok": True, "audio": audio, "mime": "audio/mpeg"}
+    except Exception as exc:
+        return {"configured": True, "ok": False, "error": type(exc).__name__}
 
 
 # ---------------------------------------------------------------- demo data --
@@ -728,6 +899,8 @@ def load_demo(d: Demo):
             ids.append((conn.execute("INSERT INTO medicines (name, dose, times) VALUES (?, ?, ?)", (name, dose, json.dumps(times))).lastrowid, times))
         conn.execute("INSERT INTO contacts (name, phone, relation, is_primary) VALUES ('Ravi', '+919800000000', 'Son', 1)")
         conn.execute("INSERT INTO contacts (name, phone, relation, is_primary) VALUES ('Ambulance', '108', 'Emergency', 0)")
+        conn.execute("INSERT INTO contacts (name, phone, relation, is_primary, kind) VALUES ('Sunita', '+919811111111', 'Daughter', 0, 'other')")
+        conn.execute("INSERT INTO contacts (name, phone, relation, is_primary, kind) VALUES ('Dr. Mehta', '+919822222222', 'Neurologist', 0, 'other')")
         for d in range(14, -1, -1):
             day = (current - timedelta(days=d)).date()
             for med_id, times in ids:

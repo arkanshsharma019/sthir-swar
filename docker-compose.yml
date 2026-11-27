@@ -8,6 +8,7 @@ services:
       # still starts; symptoms are then understood by keywords and buttons.
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - SARVAM_API_KEY=${SARVAM_API_KEY:-}
     volumes:
       - sthir-data:/data
     restart: unless-stopped

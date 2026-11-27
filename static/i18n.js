@@ -15,6 +15,13 @@ export const LANGS = {
 
 const STRINGS = {
   en: {
+    noVoice: "This device has no voice for this language, so please read the reply on screen.",
+    whoToCall: "Who should I call? Say their name, or tap them below.",
+    noSuchContact: "I could not find {name} in your contacts. A caregiver can add them.",
+    emergencyContacts: "Emergency contacts",
+    everyone: "Call or message someone",
+    call: "Call",
+    message: "Message",
     noDoseNow: "No dose is waiting right now.", takenNamed: "Thank you. I have noted {name} ({time}) as taken.",
     speakBigHint: "Say anything – how you feel, your medicine, or “help”.",
     notTaken: "Not taken?",
@@ -60,6 +67,13 @@ const STRINGS = {
     trend_worse: "worse", trend_better: "better", trend_same: "",
   },
   hi: {
+    noVoice: "इस डिवाइस पर इस भाषा की आवाज़ नहीं है, कृपया स्क्रीन पर जवाब पढ़ें।",
+    whoToCall: "किसे फ़ोन करूँ? नाम बोलिए, या नीचे दबाइए।",
+    noSuchContact: "आपके संपर्कों में {name} नहीं मिले। देखभाल करने वाले उन्हें जोड़ सकते हैं।",
+    emergencyContacts: "आपातकालीन संपर्क",
+    everyone: "किसी को फ़ोन या संदेश करें",
+    call: "फ़ोन",
+    message: "संदेश",
     noDoseNow: "अभी कोई खुराक बाकी नहीं है।", takenNamed: "धन्यवाद। {name} ({time}) ली गई, नोट कर लिया।",
     speakBigHint: "कुछ भी बोलिए – अपनी तबीयत, दवा, या “मदद”।",
     notTaken: "नहीं ली?",
@@ -105,6 +119,13 @@ const STRINGS = {
     trend_worse: "बढ़ा हुआ", trend_better: "कम", trend_same: "",
   },
   ta: {
+    noVoice: "இந்தச் சாதனத்தில் இந்த மொழிக்குக் குரல் இல்லை, திரையில் பதிலைப் படியுங்கள்.",
+    whoToCall: "யாரை அழைக்கட்டும்? பெயரைச் சொல்லுங்கள், அல்லது கீழே அழுத்துங்கள்.",
+    noSuchContact: "உங்கள் தொடர்புகளில் {name} இல்லை. பராமரிப்பாளர் சேர்க்கலாம்.",
+    emergencyContacts: "அவசரத் தொடர்புகள்",
+    everyone: "யாரையாவது அழைக்க அல்லது செய்தி அனுப்ப",
+    call: "அழை",
+    message: "செய்தி",
     noDoseNow: "இப்போது எந்த மருந்தும் நிலுவையில் இல்லை.", takenNamed: "நன்றி. {name} ({time}) எடுத்ததாகப் பதிவு செய்தேன்.",
     speakBigHint: "எதையும் சொல்லுங்கள் – உங்கள் உடல்நிலை, மருந்து, அல்லது “உதவி”.",
     notTaken: "எடுக்கவில்லையா?",
@@ -150,6 +171,13 @@ const STRINGS = {
     trend_worse: "அதிகம்", trend_better: "குறைவு", trend_same: "",
   },
   bn: {
+    noVoice: "এই ডিভাইসে এই ভাষার কণ্ঠ নেই, স্ক্রিনে উত্তরটি পড়ুন।",
+    whoToCall: "কাকে ফোন করব? নাম বলুন, বা নিচে চাপুন।",
+    noSuchContact: "আপনার যোগাযোগে {name} পাওয়া গেল না। পরিচর্যাকারী যোগ করতে পারেন।",
+    emergencyContacts: "জরুরি যোগাযোগ",
+    everyone: "কাউকে ফোন বা মেসেজ করুন",
+    call: "ফোন",
+    message: "মেসেজ",
     noDoseNow: "এখন কোনো ডোজ বাকি নেই।", takenNamed: "ধন্যবাদ। {name} ({time}) খাওয়া হয়েছে বলে লিখে রাখলাম।",
     speakBigHint: "যা খুশি বলুন – শরীর কেমন, ওষুধ, বা “সাহায্য”।",
     notTaken: "খাননি?",
@@ -195,6 +223,13 @@ const STRINGS = {
     trend_worse: "বেড়েছে", trend_better: "কমেছে", trend_same: "",
   },
   te: {
+    noVoice: "ఈ పరికరంలో ఈ భాషకు స్వరం లేదు, దయచేసి తెరపై జవాబు చదవండి.",
+    whoToCall: "ఎవరికి ఫోన్ చేయాలి? పేరు చెప్పండి, లేదా కింద నొక్కండి.",
+    noSuchContact: "మీ సంప్రదింపుల్లో {name} కనిపించలేదు. సంరక్షకులు జోడించవచ్చు.",
+    emergencyContacts: "అత్యవసర సంప్రదింపులు",
+    everyone: "ఎవరికైనా ఫోన్ లేదా సందేశం",
+    call: "ఫోన్",
+    message: "సందేశం",
     noDoseNow: "ఇప్పుడు వేసుకోవాల్సిన మోతాదు ఏదీ లేదు.", takenNamed: "ధన్యవాదాలు. {name} ({time}) వేసుకున్నట్లు నమోదు చేశాను.",
     speakBigHint: "ఏదైనా చెప్పండి – మీ ఆరోగ్యం, మందు, లేదా “సహాయం”.",
     notTaken: "వేసుకోలేదా?",
@@ -240,6 +275,13 @@ const STRINGS = {
     trend_worse: "ఎక్కువైంది", trend_better: "తగ్గింది", trend_same: "",
   },
   mr: {
+    noVoice: "या डिव्हाइसवर या भाषेचा आवाज नाही, कृपया स्क्रीनवरील उत्तर वाचा.",
+    whoToCall: "कोणाला फोन करू? नाव सांगा, किंवा खाली दाबा.",
+    noSuchContact: "तुमच्या संपर्कांमध्ये {name} सापडले नाहीत. काळजीवाहक त्यांना जोडू शकतात.",
+    emergencyContacts: "आपत्कालीन संपर्क",
+    everyone: "कोणालाही फोन किंवा संदेश",
+    call: "फोन",
+    message: "संदेश",
     noDoseNow: "आत्ता कोणताही डोस बाकी नाही.", takenNamed: "धन्यवाद. {name} ({time}) घेतल्याची नोंद केली.",
     speakBigHint: "काहीही बोला – तुमची तब्येत, औषध, किंवा “मदत”.",
     notTaken: "घेतले नाही?",
@@ -285,6 +327,13 @@ const STRINGS = {
     trend_worse: "वाढले", trend_better: "कमी झाले", trend_same: "",
   },
   pa: {
+    noVoice: "ਇਸ ਡਿਵਾਈਸ ਉੱਤੇ ਇਸ ਭਾਸ਼ਾ ਦੀ ਆਵਾਜ਼ ਨਹੀਂ ਹੈ, ਕਿਰਪਾ ਕਰਕੇ ਸਕ੍ਰੀਨ ਉੱਤੇ ਜਵਾਬ ਪੜ੍ਹੋ।",
+    whoToCall: "ਕਿਸ ਨੂੰ ਫ਼ੋਨ ਕਰਾਂ? ਨਾਮ ਬੋਲੋ, ਜਾਂ ਹੇਠਾਂ ਦਬਾਓ।",
+    noSuchContact: "ਤੁਹਾਡੇ ਸੰਪਰਕਾਂ ਵਿੱਚ {name} ਨਹੀਂ ਮਿਲੇ। ਦੇਖਭਾਲ ਕਰਨ ਵਾਲੇ ਜੋੜ ਸਕਦੇ ਹਨ।",
+    emergencyContacts: "ਐਮਰਜੈਂਸੀ ਸੰਪਰਕ",
+    everyone: "ਕਿਸੇ ਨੂੰ ਫ਼ੋਨ ਜਾਂ ਸੁਨੇਹਾ ਕਰੋ",
+    call: "ਫ਼ੋਨ",
+    message: "ਸੁਨੇਹਾ",
     noDoseNow: "ਇਸ ਵੇਲੇ ਕੋਈ ਖੁਰਾਕ ਬਾਕੀ ਨਹੀਂ ਹੈ।", takenNamed: "ਧੰਨਵਾਦ। {name} ({time}) ਲੈ ਲਈ, ਨੋਟ ਕਰ ਲਿਆ।",
     speakBigHint: "ਕੁਝ ਵੀ ਬੋਲੋ – ਆਪਣੀ ਸਿਹਤ, ਦਵਾਈ, ਜਾਂ “ਮਦਦ”।",
     notTaken: "ਨਹੀਂ ਲਈ?",
@@ -424,6 +473,15 @@ const MORE = {
     worse: ["ఎక్కువ", "చాలా", "जास्त", "वाढल", "खूप", "ਵੱਧ", "ਜ਼ਿਆਦਾ", "ਬਹੁਤ"],
   },
 };
+// Everyday ways of describing symptoms (when there is no AI to understand free speech).
+MORE.SYMPTOMS.pain.push("headache", "head is burning", "head is bursting", "head hurts", "sar dard", "sir dard", "sar phat",
+  "सर फट", "सिर फट", "सर में दर्द", "सिर में दर्द", "सिर दर्द", "सर दर्द", "தலைவலி", "தலை வலி", "মাথা ব্যথা", "মাথাব্যথা",
+  "తలనొప్పి", "डोकं दुख", "डोकेदुखी", "ਸਿਰ ਦਰਦ", "ਸਿਰ ਫਟ");
+MORE.SYMPTOMS.freezing.push("feet stuck", "glued to the floor", "legs won't move", "pair jam", "पैर जम", "पैर नहीं उठ", "கால் நகரல", "పాదాలు కదల");
+MORE.SYMPTOMS.tremor.push("won't stop moving", "hands won't stop", "haath hil", "हाथ हिल", "கை நடுங்கு");
+MORE.SYMPTOMS.dizziness.push("spinning", "ghoom raha", "आँखों के आगे अँधेरा", "सिर घूम");
+MORE.SYMPTOMS.swallowing.push("stuck in my throat", "gale mein atak", "गले में अटक");
+MORE.SYMPTOMS.mood.push("feeling low", "man nahi lag", "मन नहीं लग", "ghabrahat");
 const TABLES = { INTENTS, ANSWERS, SYMPTOMS, TRENDS };
 for (const [table, entries] of Object.entries(MORE)) {
   for (const [key, words] of Object.entries(entries)) TABLES[table][key].push(...words);
