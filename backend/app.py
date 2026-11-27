@@ -521,7 +521,9 @@ AI_TIMEOUT_S = 12
 GEMINI_MODELS = [m for m in os.environ.get("GEMINI_MODEL", "gemini-3.5-flash-lite,gemini-3.1-flash-lite").split(",") if m]
 
 SAFETY_RULES = (
-    "Never suggest changing, skipping or adding medicine doses; the doctor decides that. "
+    "Never suggest changing, skipping, adding, doubling or delaying medicine doses, and never say what to do "
+    "about a missed or late dose (not even 'take the next one as usual'); say that the app has noted it and "
+    "that their doctor or pharmacist decides. "
     "Never diagnose. If the person mentions a fall with injury, chest pain, choking, trouble breathing, "
     "fainting or feeling unsafe, tell them to press the Help button or say 'help' to call their family."
 )

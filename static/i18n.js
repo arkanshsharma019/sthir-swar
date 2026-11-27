@@ -449,6 +449,21 @@ const TOOK = [
 ];
 export const detectTook = (text) => hit(norm(text), TOOK);
 
+// Parkinson's medicine names (generic and common Indian brands) count as "medicine" words.
+// The caregiver's own medicine names are added at start-up with addMedicineWords().
+INTENTS.medicine.push(
+  "levodopa", "carbidopa", "syndopa", "tidomet", "madopar", "stalevo", "pramipexole", "ropinirole",
+  "rotigotine", "rasagiline", "selegiline", "safinamide", "entacapone", "opicapone", "amantadine",
+  "trihexyphenidyl", "pacitane", "लेवोडोपा", "सिंडोपा",
+);
+export function addMedicineWords(names) {
+  for (const name of names) {
+    for (const word of name.toLowerCase().split(/[^\p{L}]+/u)) {
+      if (word.length >= 5 && !INTENTS.medicine.includes(word)) INTENTS.medicine.push(word);
+    }
+  }
+}
+
 export const detectIntent = (text) => firstMatch(text, INTENTS);
 export const detectAnswer = (text) => firstMatch(text, ANSWERS);
 export const detectSymptom = (text) => firstMatch(text, SYMPTOMS);

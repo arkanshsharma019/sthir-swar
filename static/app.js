@@ -1,6 +1,6 @@
 // Sthir Swar - voice-first companion for people with Parkinson's and their caregivers.
 // Speech uses the browser's built-in Web Speech API, so no keys or paid services are needed.
-import { LANGS, STRINGS_EN, setLang, getLang, t, detectIntent, detectTook, detectAnswer, detectSymptom, detectTrend } from "./i18n.js";
+import { LANGS, STRINGS_EN, setLang, getLang, t, addMedicineWords, detectIntent, detectTook, detectAnswer, detectSymptom, detectTrend } from "./i18n.js";
 
 const $ = (sel) => document.querySelector(sel);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -659,6 +659,7 @@ async function loadBasics() {
   state.aiProvider = status.ai_provider;
   setLang(settings.language || "en");
   await loadContacts();
+  addMedicineWords((await api("/api/medicines")).map((m) => m.name)); // "I missed the Syndopa" counts as medicine
   applyLang();
 }
 
