@@ -3,20 +3,21 @@
 
 import { PAGE_STRINGS } from "./i18n-pages.js";
 import { EXTRA_STRINGS } from "./i18n-extra.js";
+import { SETTINGS_STRINGS } from "./i18n-settings.js";
 
 // Shown in this order in the language menu. dir: "rtl" for scripts written right to left.
 export const LANGS = {
-  en: { label: "English", speech: "en-IN" },
-  hi: { label: "हिन्दी", speech: "hi-IN" },
-  bn: { label: "বাংলা", speech: "bn-IN" },
-  mr: { label: "मराठी", speech: "mr-IN" },
-  te: { label: "తెలుగు", speech: "te-IN" },
-  ta: { label: "தமிழ்", speech: "ta-IN" },
-  gu: { label: "ગુજરાતી", speech: "gu-IN" },
-  ur: { label: "اردو", speech: "ur-IN", dir: "rtl" },
-  kn: { label: "ಕನ್ನಡ", speech: "kn-IN" },
-  ml: { label: "മലയാളം", speech: "ml-IN" },
-  pa: { label: "ਪੰਜਾਬੀ", speech: "pa-IN" },
+  en: { label: "English", en: "English", speech: "en-IN" },
+  hi: { label: "हिन्दी", en: "Hindi", speech: "hi-IN" },
+  bn: { label: "বাংলা", en: "Bengali", speech: "bn-IN" },
+  mr: { label: "मराठी", en: "Marathi", speech: "mr-IN" },
+  te: { label: "తెలుగు", en: "Telugu", speech: "te-IN" },
+  ta: { label: "தமிழ்", en: "Tamil", speech: "ta-IN" },
+  gu: { label: "ગુજરાતી", en: "Gujarati", speech: "gu-IN" },
+  ur: { label: "اردو", en: "Urdu", speech: "ur-IN", dir: "rtl" },
+  kn: { label: "ಕನ್ನಡ", en: "Kannada", speech: "kn-IN" },
+  ml: { label: "മലയാളം", en: "Malayalam", speech: "ml-IN" },
+  pa: { label: "ਪੰਜਾਬੀ", en: "Punjabi", speech: "pa-IN" },
 };
 
 const STRINGS = {
@@ -38,7 +39,7 @@ const STRINGS = {
     timeNow: "It is {time}.",
     keyNote: "General questions need an AI key, which is not set.",
     tagline: "Your steady voice",
-    hello: "Hello {name}",
+    hello: "Namaste, {name}",
     speak: "Speak", symptoms: "How I feel", medicines: "Medicines", help: "Help",
     caregiver: "Caregiver", summary: "Doctor summary", back: "Back", home: "Home",
     tapToSpeak: "Tap and speak", listening: "Listening…", youSaid: "You said",
@@ -390,6 +391,7 @@ const STRINGS = {
 for (const [lang, strings] of Object.entries(PAGE_STRINGS)) Object.assign(STRINGS[lang], strings);
 // Gujarati, Urdu, Kannada and Malayalam carry every text in one file.
 Object.assign(STRINGS, EXTRA_STRINGS);
+for (const [lang, strings] of Object.entries(SETTINGS_STRINGS)) Object.assign(STRINGS[lang], strings);
 
 export const STRINGS_EN = STRINGS.en;
 let current = "en";

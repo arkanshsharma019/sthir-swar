@@ -22,7 +22,7 @@
     <section id="view-home" class="view">
       <div class="hero">
         <img src="/static/character.svg" alt="">
-        <div><h1 id="greeting"></h1><p id="next-dose" class="next-dose" hidden></p></div>
+        <div><p class="today" id="today"></p><h1 id="greeting"></h1><p id="next-dose" class="next-dose" hidden></p></div>
       </div>
       <!-- Speak is the heart of the app: one big button that listens right here. -->
       <button class="mic mic-hero" id="home-mic" type="button">
@@ -35,10 +35,6 @@
         <a href="#symptoms" class="tile tile-sym"><span class="ico" aria-hidden="true">📝</span><span data-t="symptoms"></span></a>
         <a href="#meds" class="tile tile-med"><span class="ico" aria-hidden="true">💊</span><span data-t="medicines"></span></a>
         <a href="#help" class="tile tile-help"><span class="ico" aria-hidden="true">🆘</span><span data-t="help"></span></a>
-      </div>
-      <div class="secondary">
-        <a href="#caregiver" class="pill">👪 <span data-t="caregiver"></span></a>
-        <a href="#summary" class="pill">🩺 <span data-t="summary"></span></a>
       </div>
     </section>
 
@@ -175,11 +171,36 @@
         <ul class="list compact" id="cg-notes"></ul>
       </div>
 
+    </section>
+
+    <!-- SETTINGS -->
+    <section id="view-settings" class="view" hidden>
+      <h1>⚙️ <span data-t="settings"></span></h1>
       <div class="card">
-        <h2 data-t="cg_demo"></h2>
+        <h2 data-t="textSize"></h2>
+        <div class="choice" id="set-text" role="group">
+          <button type="button" data-size="normal" data-t="sizeNormal"></button>
+          <button type="button" data-size="large" data-t="sizeLarge"></button>
+          <button type="button" data-size="xl" data-t="sizeXL"></button>
+        </div>
+        <h2 data-t="buttonSize"></h2>
+        <div class="choice" id="set-buttons" role="group">
+          <button type="button" data-size="normal" data-t="sizeNormal"></button>
+          <button type="button" data-size="large" data-t="sizeLarge"></button>
+        </div>
+      </div>
+      <div class="card">
+        <h2 data-t="aiServices"></h2>
+        <p class="muted" data-t="keysNote"></p>
+        <div class="key-row"><span data-t="sarvamKeyLabel"></span><span class="key-status" id="key-sarvam"></span></div>
+        <div class="key-row"><span data-t="aiKeyLabel"></span><span class="key-status" id="key-ai"></span></div>
+        <p class="muted" id="cg-ai"></p>
+        <label class="switch-row"><input type="checkbox" id="set-browser-ears"><span><b data-t="browserSpeech"></b><small class="muted" data-t="browserSpeechNote"></small></span></label>
+      </div>
+      <div class="card">
+        <h2 data-t="sampleData"></h2>
         <p class="muted" data-t="cg_demoNote"></p>
         <div class="row"><button class="btn" id="cg-demo" type="button" data-t="cg_loadDemo"></button><button class="btn btn-ghost" id="cg-reset" type="button" data-t="cg_clear"></button></div>
-        <p class="muted" id="cg-ai"></p>
       </div>
     </section>
 
@@ -220,7 +241,19 @@
   </div>
 
   <div class="toast" id="toast" hidden></div>
-  <a href="#home" class="home-fab" id="home-fab" hidden>🏠 <span data-t="home"></span></a>
+  <nav class="tabbar" id="tabbar" aria-label="Main">
+    <a href="#home" data-tab="home"><span aria-hidden="true">🏠</span><span data-t="home"></span></a>
+    <a href="#caregiver" data-tab="caregiver"><span aria-hidden="true">👪</span><span data-t="caregiver"></span></a>
+    <a href="#summary" data-tab="summary"><span aria-hidden="true">🩺</span><span data-t="summary"></span></a>
+    <a href="#settings" data-tab="settings"><span aria-hidden="true">⚙️</span><span data-t="settings"></span></a>
+  </nav>
+
+  <div class="sheet-backdrop" id="lang-backdrop"></div>
+  <div class="sheet" id="lang-sheet" role="dialog" aria-modal="true" aria-labelledby="lang-title" aria-hidden="true">
+    <div class="sheet-grab" aria-hidden="true"></div>
+    <div class="sheet-head"><h2 id="lang-title" data-t="chooseLanguage"></h2><button class="sheet-close" id="lang-close" type="button" data-t-label-aria="close" aria-label="Close">✕</button></div>
+    <div class="lang-grid" id="lang-grid"></div>
+  </div>
 
   <script type="module" src="/static/app.js"></script>
 </body>

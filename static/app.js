@@ -30,7 +30,10 @@ const post = (path, body = {}) => api(path, { method: "POST", body: { now: local
 // Both keep listening through short pauses, so long, natural sentences are not cut off.
 const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const canRecord = () => !!(window.MediaRecorder && navigator.mediaDevices?.getUserMedia);
-const useSarvamEars = () => state.voice === "sarvam" && !state.sarvamEarsFailed && canRecord();
+// Saved on this device only (Settings page). Wrapped so a blocked storage never breaks the app.
+const readPref = (k, fallback) => { try { return localStorage.getItem(`ss_${k}`) ?? fallback; } catch { return fallback; } };
+const writePref = (k, v) => { try { localStorage.setItem(`ss_${k}`, v); } catch { /* not saved */ } };
+const useSarvamEars = () => state.voice === "sarvam" && !state.sarvamEarsFailed && readPref("browserEars", "0") !== "1" && canRecord();
 const canListen = () => useSarvamEars() || !!Recognition;
 
 let activeListening = null; // { finish(), abort() } for whichever engine is listening
@@ -597,7 +600,8 @@ async function nextDose() {
 
 async function renderHome() {
   const name = state.settings.patient_name;
-  $("#greeting").textContent = name ? t("hello", { name }) : t("tagline");
+  $("#today").textContent = new Date().toLocaleDateString(locale(), { weekday: "long", day: "numeric", month: "long" });
+  $("#greeting").textContent = name ? t("hello", { name }) : t("helloNoName");
   const next = await nextDose().catch(() => null);
   const el = $("#next-dose");
   el.hidden = !next;
@@ -728,9 +732,6 @@ async function renderCaregiver() {
     `<li><span><b>${esc(c.name)}</b> ${esc(c.phone)} ${c.is_primary ? "⭐" : ""} <small class="muted">${esc(c.relation)}</small>
       <span class="tag">${esc(t(c.kind === "other" ? "cg_kindOther" : "cg_kindEmergency"))}</span></span><button class="x" data-contact="${c.id}" type="button" aria-label="Remove">✕</button></li>`).join("") || `<li>${esc(t("cg_noContacts"))}</li>`;
   $("#cg-notes").innerHTML = notes.map((n) => `<li><span>${esc(n.text)}</span><span class="tag">${esc(dateText(n.created_at))}</span></li>`).join("");
-  $("#cg-ai").textContent = state.aiEnabled
-    ? t("cg_aiOn", { provider: state.aiProvider === "claude" ? "Claude" : "Gemini" })
-    : t("cg_aiOff");
 
   document.querySelectorAll("[data-med]").forEach((b) => { b.onclick = async () => { await api(`/api/medicines/${b.dataset.med}`, { method: "DELETE" }); renderCaregiver(); }; });
   document.querySelectorAll("[data-contact]").forEach((b) => { b.onclick = async () => { await api(`/api/contacts/${b.dataset.contact}`, { method: "DELETE" }); await loadContacts(); renderCaregiver(); }; });
@@ -779,10 +780,41 @@ function bindCaregiverForms() {
     await post("/api/notes", formData(form));
     form.reset(); renderCaregiver(); toast(esc(t("cg_noteSaved")));
   });
-  $("#cg-demo").onclick = async () => { await post("/api/demo", { language: getLang() }); await loadBasics(); renderCaregiver(); toast(esc(t("cg_demoLoaded"))); };
+}
+
+// -------------------------------------------------------------- settings --
+const TEXT_SIZES = { normal: "", large: "23px", xl: "26px" };
+function applySizes() {
+  const text = readPref("textSize", "normal");
+  document.documentElement.style.fontSize = TEXT_SIZES[text] || "";
+  document.body.classList.toggle("big-buttons", readPref("buttonSize", "normal") === "large");
+}
+function markChoice(group, value) {
+  group.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.size === value)));
+}
+
+function renderSettings() {
+  for (const [id, key] of [["#set-text", "textSize"], ["#set-buttons", "buttonSize"]]) {
+    const group = $(id);
+    markChoice(group, readPref(key, "normal"));
+    group.querySelectorAll("button").forEach((b) => {
+      b.onclick = () => { writePref(key, b.dataset.size); applySizes(); markChoice(group, b.dataset.size); };
+    });
+  }
+  const status = (on) => `${on ? "✅ " + t("keySet") : "⚪ " + t("keyNotSet")} · ${t("lockedHosted")}`;
+  $("#key-sarvam").textContent = status(state.voice === "sarvam");
+  $("#key-ai").textContent = status(state.aiEnabled);
+  $("#cg-ai").textContent = state.aiEnabled
+    ? t("cg_aiOn", { provider: state.aiProvider === "claude" ? "Claude" : "Gemini" })
+    : t("cg_aiOff");
+  const ears = $("#set-browser-ears");
+  ears.checked = readPref("browserEars", "0") === "1";
+  ears.disabled = state.voice !== "sarvam"; // without Sarvam the browser already listens
+  ears.onchange = () => writePref("browserEars", ears.checked ? "1" : "0");
+  $("#cg-demo").onclick = async () => { await post("/api/demo", { language: getLang() }); await loadBasics(); renderSettings(); toast(esc(t("cg_demoLoaded"))); };
   $("#cg-reset").onclick = async () => {
     if (!confirm(t("cg_confirmClear"))) return;
-    await post("/api/reset"); await loadBasics(); renderCaregiver(); toast(esc(t("cg_cleared")));
+    await post("/api/reset"); await loadBasics(); renderSettings(); toast(esc(t("cg_cleared")));
   };
 }
 
@@ -847,14 +879,17 @@ async function renderSummary() {
 }
 
 // --------------------------------------------------------------- router --
-const VIEWS = { home: renderHome, speak: null, symptoms: renderSymptoms, meds: renderMeds, help: renderHelp, caregiver: renderCaregiver, summary: renderSummary };
+const VIEWS = { home: renderHome, speak: null, symptoms: renderSymptoms, meds: renderMeds, help: renderHelp, caregiver: renderCaregiver, summary: renderSummary, settings: renderSettings };
 
 function route() {
   const name = (location.hash || "#home").slice(1);
   const view = name in VIEWS ? name : "home";
   stopListening();
+  closeLangSheet();
   document.querySelectorAll(".view").forEach((v) => { v.hidden = v.id !== `view-${view}`; });
-  $("#home-fab").hidden = view === "home";
+  document.querySelectorAll("#tabbar a").forEach((a) => {
+    if (a.dataset.tab === view) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
+  });
   window.scrollTo(0, 0);
   Promise.resolve().then(() => VIEWS[view]?.()).catch((err) => toast(esc(err.message)));
 }
@@ -868,17 +903,37 @@ function applyLang() {
   document.querySelectorAll("[data-t-label]").forEach((el) => { el.label = t(el.dataset.tLabel); });
   document.querySelectorAll("[data-t-n]").forEach((el) => { el.textContent = t("lastDays", { n: el.dataset.tN }); });
   document.querySelectorAll(".mic").forEach((b) => { b.dataset.idle = b.querySelector("[data-t]").textContent; });
-  // One big language menu: 11 languages would not fit as buttons on a phone.
-  $("#langs").innerHTML = `<label class="lang-pick"><span aria-hidden="true">🌐</span>
-    <select id="lang-select" aria-label="Language">${Object.entries(LANGS).map(([code, l]) =>
-      `<option value="${code}" ${code === getLang() ? "selected" : ""}>${l.label}</option>`).join("")}</select></label>`;
-  $("#lang-select").onchange = async (e) => {
-    setLang(e.target.value);
-    applyLang();
-    route();
-    say(t("tagline"));
-    state.settings = await post("/api/settings", { language: e.target.value }).catch(() => state.settings);
-  };
+  document.querySelectorAll("[data-t-label-aria]").forEach((el) => { el.setAttribute("aria-label", t(el.dataset.tLabelAria)); });
+  // A pill in the top bar; tapping it slides up a sheet of big language cards.
+  $("#langs").innerHTML = `<button class="lang-pill" id="lang-open" type="button" aria-haspopup="dialog">
+    <span aria-hidden="true">🌐</span><span>${esc(LANGS[getLang()].label)}</span></button>`;
+  $("#lang-open").onclick = openLangSheet;
+  $("#lang-grid").innerHTML = Object.entries(LANGS).map(([code, l]) =>
+    `<button type="button" class="lang-card" data-lang="${code}" lang="${code}" dir="${l.dir || "ltr"}" aria-pressed="${code === getLang()}">
+      <span class="native">${esc(l.label)}</span><span class="english" dir="ltr">${esc(l.en)}</span></button>`).join("");
+  $("#lang-grid").querySelectorAll(".lang-card").forEach((b) => { b.onclick = () => chooseLang(b.dataset.lang); });
+}
+
+function openLangSheet() {
+  $("#lang-backdrop").classList.add("open");
+  $("#lang-sheet").classList.add("open");
+  $("#lang-sheet").setAttribute("aria-hidden", "false");
+  ($("#lang-grid [aria-pressed=true]") || $("#lang-close")).focus();
+}
+function closeLangSheet() {
+  if (!$("#lang-sheet").classList.contains("open")) return;
+  $("#lang-backdrop").classList.remove("open");
+  $("#lang-sheet").classList.remove("open");
+  $("#lang-sheet").setAttribute("aria-hidden", "true");
+  $("#lang-open")?.focus();
+}
+async function chooseLang(code) {
+  setLang(code);
+  applyLang();
+  closeLangSheet();
+  route();
+  say(t("tagline"));
+  state.settings = await post("/api/settings", { language: code }).catch(() => state.settings);
 }
 
 // ----------------------------------------------------------------- start --
@@ -909,6 +964,7 @@ function bindMic(btn, onHeard) {
 }
 
 async function start() {
+  applySizes(); // text and button size chosen in Settings, on this device
   await loadBasics();
   bindCaregiverForms();
   bindMic($("#speak-mic"), (text) => handleUtterance(text).catch((e) => toast(esc(e.message))));
@@ -934,6 +990,9 @@ async function start() {
   $("#sum-days").onchange = renderSummary;
   if (!canListen()) toast(esc(t("noSpeech")), 8000);
   if ("speechSynthesis" in window) speechSynthesis.getVoices(); // warm up the voice list
+  $("#lang-close").onclick = closeLangSheet;
+  $("#lang-backdrop").onclick = closeLangSheet;
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeLangSheet(); });
   window.addEventListener("hashchange", route);
   route();
   checkDue();
