@@ -56,8 +56,8 @@ a { color: inherit; }
 
 /* ---------- bottom bar ---------- */
 .tabbar { position: fixed; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(4, 1fr); background: var(--surface); border-top: 2px solid var(--line); box-shadow: 0 -4px 16px rgba(31, 42, 55, .06); z-index: 40; padding-bottom: env(safe-area-inset-bottom); }
-.tabbar a { min-height: 76px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-decoration: none; color: var(--muted); font-size: .9rem; font-weight: 700; text-align: center; padding: 6px 4px; }
-.tabbar a span:first-child { font-size: 1.6rem; line-height: 1; }
+.tabbar a { min-height: 100px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-decoration: none; color: var(--muted); font-size: 1.05rem; font-weight: 700; text-align: center; padding: 6px 4px; }
+.tabbar a span:first-child { font-size: 2.3rem; line-height: 1; }
 .tabbar a[aria-current="page"] { color: var(--brand); background: var(--brand-soft); }
 
 /* ---------- settings ---------- */
@@ -78,11 +78,11 @@ body.big-buttons .tile { min-height: 220px; }
 body.big-buttons .tiles.three .tile { min-height: 200px; }
 body.big-buttons .mic { min-height: 200px; }
 body.big-buttons .mic.mic-hero { min-height: 340px; }
-body.big-buttons .tabbar a { min-height: 92px; }
+body.big-buttons .tabbar a { min-height: 116px; }
 body.big-buttons .choice button, body.big-buttons .lang-card { min-height: 100px; }
 
 /* ---------- type hierarchy ---------- */
-main { max-width: 900px; margin: 0 auto; padding: 22px 16px 140px; }
+main { max-width: 900px; margin: 0 auto; padding: 22px 16px 160px; }
 h1 { font-size: 2.1rem; line-height: 1.2; font-weight: 800; color: var(--brand); margin: 6px 0 18px; }
 h2 { font-size: 1.15rem; font-weight: 800; color: var(--ink); text-transform: uppercase; letter-spacing: .6px; margin: 34px 0 12px; display: flex; align-items: center; gap: 10px; }
 h2::before { content: ""; width: 6px; height: 1.2em; border-radius: 4px; background: var(--accent); }
@@ -218,7 +218,7 @@ select { cursor: pointer; }
 .answers.two { grid-template-columns: 1fr 1fr; }
 .listening-note { color: var(--muted); min-height: 1.5em; margin: 12px 0 0; }
 
-.toast { position: fixed; left: 50%; bottom: 100px; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 14px 22px; border-radius: 16px; font-size: 1.1rem; z-index: 60; max-width: 90vw; box-shadow: var(--shadow); }
+.toast { position: fixed; left: 50%; bottom: 124px; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 14px 22px; border-radius: 16px; font-size: 1.1rem; z-index: 60; max-width: 90vw; box-shadow: var(--shadow); }
 
 /* ---------- doctor summary ---------- */
 .report-head { background: var(--surface); border-radius: var(--radius); padding: 18px 20px; box-shadow: var(--shadow); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: center; }
@@ -264,7 +264,8 @@ select { cursor: pointer; }
   .lang-pill { min-height: 52px; padding: 4px 14px; font-size: 1rem; }
   .today { font-size: .72rem; }
   .sheet { padding: 8px 14px 22px; }
-  .tabbar a { font-size: .78rem; }
+  .tabbar a { font-size: .9rem; min-height: 92px; }
+  .tabbar a span:first-child { font-size: 2rem; }
   .tiles.three { gap: 10px; }
   .tiles.three .tile { min-height: 132px; font-size: 1.05rem; padding: 10px 6px; }
   .tiles.three .tile .ico { width: 58px; height: 58px; font-size: 2rem; }
